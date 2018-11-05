@@ -5,3 +5,6 @@
 /.vs/AIO/v15/Solution.VC.db-shm
 /.vs/AIO/v15/Solution.VC.db-wal
 /.vs/AIO/v15/Browse.VC.opendb
+/.vs/AIO/v15
+/AIO/x64
+/x64/Release

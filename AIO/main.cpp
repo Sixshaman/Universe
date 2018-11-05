@@ -52,7 +52,7 @@ int main(int argc, char *argv[])
 		}
 		else if (mode == 11)
 		{
-			for (int i = 1; i <= 50; i++)
+			for (int i = 1; i <= 100; i++)
 			{
 				std::vector< boost::dynamic_bitset<> > mat;
 				mat = ReadBorderlessSm(i);
@@ -110,5 +110,6 @@ int main(int argc, char *argv[])
 		std::cout << "Saved succesfully! Completed." << std::endl;
 	}
 
-	return std::cin.get();
+	system("pause");
+	return 0;
 }
