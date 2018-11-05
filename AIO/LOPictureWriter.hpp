@@ -30,10 +30,15 @@ public:
 
 private:
 	void WriteRowBorderful(const boost::dynamic_bitset<uint64_t>& row, int rowIndex);
+	void WriteRowBorderfulWhite(const boost::dynamic_bitset<uint64_t>& row, int rowIndex);
+	void WriteRowBorderless(const boost::dynamic_bitset<uint64_t>& row);
+	void WriteRowBorderlessBig(const boost::dynamic_bitset<uint64_t>& row);
 
 	DWORD WriteWhiteLine();
 	DWORD WriteEdgeLine();
 	DWORD WriteCellLine(const boost::dynamic_bitset<uint64_t>& row);
+	DWORD WriteBorderlessCellLine(const boost::dynamic_bitset<uint64_t>& row);
+	DWORD WriteBorderlessCellLineBig(const boost::dynamic_bitset<uint64_t>& row);
 
 private:
 	HANDLE          mFileHandle;

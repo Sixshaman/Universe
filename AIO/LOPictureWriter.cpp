@@ -11,35 +11,6 @@
 #define BORDER_WID 1
 #define SPACE_WID  1
 
-//void WriteBorderlessLine(HANDLE hFile, UINT width, UINT size, LOMatrix& mat, UINT majY, UINT minY, UINT* buf, BYTE* Palette, DWORD &writtenBytes)
-//{
-//	UINT white = WHITE_ARGB;
-//	UINT red   = RED_ARGB;
-//
-//	UINT* buf_prev = buf;
-//	for(int ix = 0; ix < size; ix++)
-//	{
-//		UINT row = majY*size + ix;
-//
-//		for(int jx = 0; jx < size; jx++)
-//		{
-//			UINT column = minY*size + jx;
-//
-//			if (mat[row][column])
-//			{
-//				*(buf_prev++) = red;
-//			}
-//			else
-//			{
-//				*(buf_prev++) = white;
-//			}
-//		}
-//	}
-//
-//	WriteFile(hFile, buf, sizeof(UINT) * width, &writtenBytes, nullptr);
-//	WriteFile(hFile, Palette, (sizeof(UINT)* width) % 4, &writtenBytes, nullptr);
-//}
-//
 //LOMatrix ReadMatrixFromMemory(const std::vector<byte>& bytes, int width, int height, int losize, int bytesPerData, int stride)
 //{
 //	int si_si = losize * losize;
@@ -151,63 +122,6 @@
 //	}
 //
 //	return matrix;
-//}
-//
-//void SaveBorderless(LOMatrix mask, int size)
-//{
-//	HANDLE hFile;
-//	int widSm = size;
-//	int wid   = widSm*size;
-//	int hei   = wid;
-//
-//	BITMAPFILEHEADER bmpFileHeader;
-//	bmpFileHeader.bfType = 0x4D42;
-//	bmpFileHeader.bfOffBits = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER) + 1024; 
-//	bmpFileHeader.bfSize = bmpFileHeader.bfOffBits + sizeof(UINT) * wid * hei + hei * (sizeof (UINT)* wid) % 4;
-//	bmpFileHeader.bfReserved1 = 0;
-//	bmpFileHeader.bfReserved2 = 0;
-//
-//	BITMAPINFOHEADER bmpInfoHeader;
-//	ZeroMemory(&bmpInfoHeader, sizeof(BITMAPINFOHEADER));
-//	bmpInfoHeader.biSize = sizeof(BITMAPINFOHEADER);
-//	bmpInfoHeader.biBitCount = 32;
-//	bmpInfoHeader.biClrUsed = 0;
-//	bmpInfoHeader.biCompression = BI_RGB;
-//	bmpInfoHeader.biWidth = wid;
-//	bmpInfoHeader.biHeight = -1 * hei;
-//	bmpInfoHeader.biPlanes = 1;
-//
-//	hFile = CreateFile(L"Am.bmp", GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, 0, nullptr);
-//
-//	if(hFile == INVALID_HANDLE_VALUE)
-//	{
-//		MessageBox(nullptr, L"Cannot create file", L"Error", MB_OK);
-//		return;
-//	}
-//
-//	BYTE Palette[1024];  
-//	memset(Palette, 0, 1024);
-//
-//	DWORD writtenBytes;
-//	WriteFile(hFile, &bmpFileHeader, sizeof(BITMAPFILEHEADER), &writtenBytes, nullptr);
-//	WriteFile(hFile, &bmpInfoHeader, sizeof(BITMAPINFOHEADER), &writtenBytes, nullptr);
-//
-//	WriteFile(hFile, Palette, 1024, &writtenBytes, nullptr);
-//
-//	UINT* buf = new UINT[wid];
-//
-//	UINT si_si = size*size;
-//	for(int iy = 0; iy < size; iy++)
-//	{
-//		for(int jy = 0; jy < size; jy++)
-//		{
-//			std::cout << (iy*size + jy) * 100.0f / si_si << "%..." << std::endl;
-//			WriteBorderlessLine(hFile, wid, size, mask, iy, jy, buf, Palette, writtenBytes);
-//		}
-//	}
-//
-//	CloseHandle(hFile);
-//	delete[] buf;
 //}
 //
 //LOMatrix ReadBorderless()
@@ -488,25 +402,28 @@ void LOPictureWriter::WriteBeginning()
 
 void LOPictureWriter::WriteRow(const boost::dynamic_bitset<uint64_t>& row, int rowIndex)
 {
+	UINT si_si = mGameSize * mGameSize;
+	std::cout << (rowIndex) * 100.0f / si_si << "%..." << std::endl;
+
 	switch (mSaveMode)
 	{
 	case PictureSaveMode::BORDERFUL:
 		WriteRowBorderful(row, rowIndex);
 		break;
 	case PictureSaveMode::BORDERFUL_WHITE:
+		WriteRowBorderfulWhite(row, rowIndex);
 		break;
 	case PictureSaveMode::BORDERLESS:
+		WriteRowBorderless(row);
 		break;
 	case PictureSaveMode::BORDERLESS_BIG:
+		WriteRowBorderlessBig(row);
 		break;
 	}
 }
 
 void LOPictureWriter::WriteRowBorderful(const boost::dynamic_bitset<uint64_t>& row, int rowIndex)
 {
-	UINT si_si = mGameSize * mGameSize;
-	std::cout << (rowIndex) * 100.0f / si_si << "%..." << std::endl;
-
 	WriteEdgeLine();
 	for(int i = 0; i < CELL_WID; i++)
 	{
@@ -517,6 +434,32 @@ void LOPictureWriter::WriteRowBorderful(const boost::dynamic_bitset<uint64_t>& r
 	{
 		WriteEdgeLine();
 		WriteWhiteLine();
+	}
+}
+
+void LOPictureWriter::WriteRowBorderfulWhite(const boost::dynamic_bitset<uint64_t>& row, int rowIndex)
+{
+	for(int i = 0; i < CELL_WID; i++)
+	{
+		WriteCellLine(row);
+	}
+
+	if((rowIndex + 1) % mGameSize == 0)
+	{
+		WriteWhiteLine();
+	}
+}
+
+void LOPictureWriter::WriteRowBorderless(const boost::dynamic_bitset<uint64_t>& row)
+{
+	WriteBorderlessCellLine(row);
+}
+
+void LOPictureWriter::WriteRowBorderlessBig(const boost::dynamic_bitset<uint64_t>& row)
+{
+	for(int i = 0; i < CELL_WID; i++)
+	{
+		WriteBorderlessCellLineBig(row);
 	}
 }
 
@@ -616,6 +559,75 @@ DWORD LOPictureWriter::WriteCellLine(const boost::dynamic_bitset<uint64_t>& row)
 		*(buf_prev++) = black;
 	}
 	*(buf_prev++) = white;
+
+	byte* buf_bytes = reinterpret_cast<byte*>(buf_prev);
+	for(uint32_t pad = mImageWidth * sizeof(uint32_t); pad < mImageStrideBytes; pad++)
+	{
+		*(buf_bytes++) = 0;
+	}
+
+	DWORD writtenBytes = 0;
+	WriteFile(mFileHandle, mTempBuf.data(), mImageStrideBytes, &writtenBytes, nullptr);
+
+	return writtenBytes;
+}
+
+DWORD LOPictureWriter::WriteBorderlessCellLine(const boost::dynamic_bitset<uint64_t>& row)
+{
+	UINT white = WHITE_ARGB;
+	UINT red   = RED_ARGB;
+
+	uint32_t* buf_prev = mTempBuf.data();
+	for(int ix = 0; ix < mGameSize; ix++)
+	{
+		for(int jx = 0; jx < mGameSize; jx++)
+		{
+			if(row[ix * mGameSize + jx])
+			{
+				*(buf_prev++) = red;
+			}
+			else
+			{
+				*(buf_prev++) = white;
+			}
+		}
+	}
+
+	byte* buf_bytes = reinterpret_cast<byte*>(buf_prev);
+	for(uint32_t pad = mImageWidth * sizeof(uint32_t); pad < mImageStrideBytes; pad++)
+	{
+		*(buf_bytes++) = 0;
+	}
+
+	DWORD writtenBytes = 0;
+	WriteFile(mFileHandle, mTempBuf.data(), mImageStrideBytes, &writtenBytes, nullptr);
+
+	return writtenBytes;
+}
+
+DWORD LOPictureWriter::WriteBorderlessCellLineBig(const boost::dynamic_bitset<uint64_t>& row)
+{
+	UINT white = WHITE_ARGB;
+	UINT red   = RED_ARGB;
+
+	uint32_t* buf_prev = mTempBuf.data();
+	for(int ix = 0; ix < mGameSize; ix++)
+	{
+		for(int jx = 0; jx < mGameSize; jx++)
+		{
+			for (int i = 0; i < CELL_WID; i++)
+			{
+				if (row[ix * mGameSize + jx])
+				{
+					*(buf_prev++) = red;
+				}
+				else
+				{
+					*(buf_prev++) = white;
+				}
+			}
+		}
+	}
 
 	byte* buf_bytes = reinterpret_cast<byte*>(buf_prev);
 	for(uint32_t pad = mImageWidth * sizeof(uint32_t); pad < mImageStrideBytes; pad++)
