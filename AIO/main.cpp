@@ -1,6 +1,5 @@
-#include <fstream>
 #include <iostream>
-#include "GenPicture.hpp"
+#include "LOMatrix.hpp"
 
 int main(int argc, char *argv[])
 {
@@ -20,39 +19,39 @@ int main(int argc, char *argv[])
 		{
 			std::cout << "SECRET mode!" << std::endl;
 
-			std::vector< boost::dynamic_bitset<> > mat;
-			mat = ReadBorderless();
+			//std::vector< boost::dynamic_bitset<> > mat;
+			//mat = ReadBorderless();
 
-			int size = int(sqrtf(mat.size()));
+			//int size = int(sqrtf(mat.size()));
 
-			mat = ToDiag(mat);
+			//mat = ToDiag(mat);
 
-			if(size_matrix == size)
-			{
-				SaveBorder(mat, size);
-			}
-			else
-			{
-				SaveBorderless(mat, size);
-			}
-			
-			std::cout << "Saved succesfully! Completed." << std::endl;
+			//if(size_matrix == size)
+			//{
+			//	SaveBorder(mat, size);
+			//}
+			//else
+			//{
+			//	SaveBorderless(mat, size);
+			//}
+			//
+			//std::cout << "Saved succesfully! Completed." << std::endl;
 		}
 		else if(mode == 9)
 		{
 			std::cout << "SECRET mode 2!" << std::endl;
 
-			std::vector< boost::dynamic_bitset<> > mat;
-			mat = ReadBorderlessSm(size_matrix);
+			//std::vector< boost::dynamic_bitset<> > mat;
+			//mat = ReadBorderlessSm(size_matrix);
 
-			mat = ToDiag(mat);
+			//mat = ToDiag(mat);
 
-			SaveBorder(mat, size_matrix);
-			std::cout << "Saved succesfully! Completed." << std::endl;
+			//SaveBorder(mat, size_matrix);
+			//std::cout << "Saved succesfully! Completed." << std::endl;
 		}
 		else if (mode == 11)
 		{
-			for (int i = 1; i <= 100; i++)
+			/*for (int i = 1; i <= 100; i++)
 			{
 				std::vector< boost::dynamic_bitset<> > mat;
 				mat = ReadBorderlessSm(i);
@@ -66,7 +65,7 @@ int main(int argc, char *argv[])
 				{
 					std::cout << i << " IS UNSOLVABLE" << std::endl;
 				}
-			}
+			}*/
 		}
 		else
 		{
@@ -75,7 +74,7 @@ int main(int argc, char *argv[])
 	}
 	else
 	{
-		std::vector< boost::dynamic_bitset<> > mat;
+		LOMatrix mat;
 
 		bool useLT = (mode >> 0) & 0x01;
 		bool useA  = (mode >> 1) & 0x01;
@@ -83,28 +82,28 @@ int main(int argc, char *argv[])
 
 		if(!useLT)
 		{
-			mat = GetMatrixLO(size_matrix);
+			mat.Default(size_matrix);
 		}
 		else
 		{
-			mat = GetMatrixLT(size_matrix);
+			std::cout << "Not supported" << std::endl;
 		}
 
 		std::cout << "Generated succesfully..." << std::endl;
 
 		if(!useA)
 		{
-			mat = ToDiag(mat);
+			mat = mat.Inverto();
 			std::cout << "Diagonalized succesfully..." << std::endl;
 		}
 
 		if(!useEL)
 		{
-			SaveBorder(mat, size_matrix);
+			mat.Save(L"Am.bmp");
 		}
 		else
 		{
-			SaveBorderless(mat, size_matrix);
+			std::cout << "Not supported" << std::endl;
 		}
 
 		std::cout << "Saved succesfully! Completed." << std::endl;

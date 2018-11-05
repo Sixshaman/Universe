@@ -142,15 +142,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="Genmatrix.hpp" />
-    <ClInclude Include="GenPicture.hpp" />
-    <ClInclude Include="ToDiagonal.hpp" />
+    <ClInclude Include="LOMatrix.hpp" />
+    <ClInclude Include="LOPictureWriter.hpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Genmatrix.cpp" />
-    <ClCompile Include="GenPicture.cpp" />
+    <ClCompile Include="LOMatrix.cpp" />
+    <ClCompile Include="LOPictureWriter.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="ToDiagonal.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
