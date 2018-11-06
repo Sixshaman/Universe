@@ -142,11 +142,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="FileModes.hpp" />
     <ClInclude Include="LOMatrix.hpp" />
+    <ClInclude Include="LOPictureReader.hpp" />
     <ClInclude Include="LOPictureWriter.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="LOMatrix.cpp" />
+    <ClCompile Include="LOPictureReader.cpp" />
     <ClCompile Include="LOPictureWriter.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>

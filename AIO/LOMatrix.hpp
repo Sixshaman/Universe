@@ -3,6 +3,7 @@
 #include <vector>
 #include <boost/dynamic_bitset.hpp>
 #include <string>
+#include "FileModes.hpp"
 
 class LOMatrix
 {
@@ -11,12 +12,18 @@ public:
 	~LOMatrix();
 
 	LOMatrix Inverto();
-	bool     CheckInv();
+	uint32_t CheckInv();
 
-	void Load(const std::wstring& filename);
+	void Load(const std::wstring& filename, uint32_t gameSize);
+	void LoadBig(const std::wstring& filename);
+
 	void Save(const std::wstring& filename);
+	void SaveBorderless(const std::wstring& filename);
 
-	void Default(uint32_t size);
+private:
+	void LoadDefault(uint32_t size);
+
+	void SaveMatrix(const std::wstring& filename, PictureSaveMode saveMode);
 
 private:
 	uint32_t                                     mSize;

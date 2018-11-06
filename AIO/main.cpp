@@ -6,7 +6,7 @@ int main(int argc, char *argv[])
 	int size_matrix = 0;
 	int mode        = -1;
 
-	std::cout << "Enter size" << std::endl;
+	std::cout << "Enter size. Enter -1 to check for solvability" << std::endl;
 	std::cin >> size_matrix;
 
 	//LO for Lights Out, LT for Lights Trout, I for Inverse, A for Averse, VE for With Edges, EL for Edgeless
@@ -37,35 +37,23 @@ int main(int argc, char *argv[])
 			//
 			//std::cout << "Saved succesfully! Completed." << std::endl;
 		}
-		else if(mode == 9)
-		{
-			std::cout << "SECRET mode 2!" << std::endl;
-
-			//std::vector< boost::dynamic_bitset<> > mat;
-			//mat = ReadBorderlessSm(size_matrix);
-
-			//mat = ToDiag(mat);
-
-			//SaveBorder(mat, size_matrix);
-			//std::cout << "Saved succesfully! Completed." << std::endl;
-		}
 		else if (mode == 11)
 		{
-			/*for (int i = 1; i <= 100; i++)
+			for (int i = 1; i <= 250; i++)
 			{
-				std::vector< boost::dynamic_bitset<> > mat;
-				mat = ReadBorderlessSm(i);
-				bool inv = CheckInv(mat);
+				LOMatrix mat;
+				mat.Load(L"Maa.bmp", i);
+				uint32_t qPattSize = mat.CheckInv();
 
-				if (inv)
+				if(qPattSize == 0)
 				{
 					std::cout << i << " IS SOLVABLE" << std::endl;
 				}
 				else
 				{
-					std::cout << i << " IS UNSOLVABLE" << std::endl;
+					std::cout << i << " IS UNSOLVABLE(" << qPattSize << ")" << std::endl;
 				}
-			}*/
+			}
 		}
 		else
 		{
@@ -82,7 +70,7 @@ int main(int argc, char *argv[])
 
 		if(!useLT)
 		{
-			mat.Default(size_matrix);
+			mat.Load(L"Maa.bmp", size_matrix);
 		}
 		else
 		{
@@ -91,19 +79,26 @@ int main(int argc, char *argv[])
 
 		std::cout << "Generated succesfully..." << std::endl;
 
+		std::wstring filename;
+
 		if(!useA)
 		{
 			mat = mat.Inverto();
+			filename = L"Am.bmp";
 			std::cout << "Diagonalized succesfully..." << std::endl;
+		}
+		else
+		{
+			filename = L"Ma.bmp";
 		}
 
 		if(!useEL)
 		{
-			mat.Save(L"Am.bmp");
+			mat.Save(filename);
 		}
 		else
 		{
-			std::cout << "Not supported" << std::endl;
+			mat.SaveBorderless(filename);
 		}
 
 		std::cout << "Saved succesfully! Completed." << std::endl;

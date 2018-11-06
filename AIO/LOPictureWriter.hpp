@@ -3,20 +3,7 @@
 #include <Windows.h>
 #include <string>
 #include <boost\dynamic_bitset.hpp>
-
-//LOMatrix ReadBorderless();
-//LOMatrix ReadBorderlessSm(int loSize);
-//
-//void SaveBorder(LOMatrix mask, int size);
-//void SaveBorderless(LOMatrix mask, int size);
-
-enum class PictureSaveMode
-{
-	BORDERFUL,
-	BORDERFUL_WHITE,
-	BORDERLESS,
-	BORDERLESS_BIG
-};
+#include "FileModes.hpp"
 
 class LOPictureWriter
 {
