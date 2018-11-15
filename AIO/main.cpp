@@ -1,48 +1,47 @@
 #include <iostream>
 #include "LOMatrix.hpp"
 
+enum LOMode
+{
+	LIGHTS_OUT   = 0,
+	TOROID_LOUT  = 1,
+	LIGHTS_TROUT = 2
+};
+
 int main(int argc, char *argv[])
 {
 	int size_matrix = 0;
 	int mode        = -1;
 
-	std::cout << "Enter size. Enter -1 to check for solvability" << std::endl;
+	std::cout << "Enter size. Enter -1 to check for normal solvability and -2 to check for toroidal solvability" << std::endl;
 	std::cin >> size_matrix;
 
-	//LO for Lights Out, LT for Lights Trout, I for Inverse, A for Averse, VE for With Edges, EL for Edgeless
-	std::cout << "Enter mode. 0 - LOIVE, 1 - LTIVE, 2 - LOAVE, 3 - LTAVE, 4 - LOIEL, 5 - LTIEL, 6 - LOAEL, 7 - LTAEL" << std::endl;
-	std::cin >> mode;
-
-	if (mode < 0 || mode > 7)
+	if(size_matrix < 0)
 	{
-		if(mode == 8)
-		{
-			std::cout << "SECRET mode!" << std::endl;
-
-			//std::vector< boost::dynamic_bitset<> > mat;
-			//mat = ReadBorderless();
-
-			//int size = int(sqrtf(mat.size()));
-
-			//mat = ToDiag(mat);
-
-			//if(size_matrix == size)
-			//{
-			//	SaveBorder(mat, size);
-			//}
-			//else
-			//{
-			//	SaveBorderless(mat, size);
-			//}
-			//
-			//std::cout << "Saved succesfully! Completed." << std::endl;
-		}
-		else if (mode == 11)
+		if (size_matrix == -1)
 		{
 			for (int i = 1; i <= 250; i++)
 			{
 				LOMatrix mat;
 				mat.Load(L"Maa.bmp", i);
+				uint32_t qPattSize = mat.CheckInv();
+
+				if(qPattSize == 0)
+				{
+					std::cout << i << " IS SOLVABLE" << std::endl;
+				}
+				else
+				{
+					std::cout << i << " IS UNSOLVABLE(" << qPattSize << ")" << std::endl;
+				}
+			}
+		}
+		else if (size_matrix == -2)
+		{
+			for (int i = 1; i <= 250; i++)
+			{
+				LOMatrix mat;
+				mat.LoadToroid(L"Maa.bmp", i);
 				uint32_t qPattSize = mat.CheckInv();
 
 				if(qPattSize == 0)
@@ -62,46 +61,67 @@ int main(int argc, char *argv[])
 	}
 	else
 	{
-		LOMatrix mat;
+		std::cout << "Enter mode."                                                          << "\n"
+			      << "LO - Normal Lights Out, TO - Toroidal Lights Out, LT - Lights Trout." << "\n"
+			      << "I - Inverse, A - Direct."                                             << "\n"
+			      << "VE - With Borders, EL - Borderless."                                  << "\n"
+			      << "0,   1,   2,   3 - LOIVE, LOIEL, LOAVE, LOAEL respectively."          << "\n"
+			      << "4,   5,   6,   7 - TOIVE, TOIEL, TOAVE, TOAEL respectively."          << "\n"
+			      << "8,   9,  10,  11 - LTIVE, LTIEL, LTAVE, LTAEL respectively."          << std::endl;
 
-		bool useLT = (mode >> 0) & 0x01;
-		bool useA  = (mode >> 1) & 0x01;
-		bool useEL = (mode >> 2) & 0x01;
+		std::cin >> mode;
 
-		if(!useLT)
+		if (mode < 0 || mode > 11)
 		{
-			mat.Load(L"Maa.bmp", size_matrix);
+			std::cout << "Unknown mode!" << std::endl;
 		}
 		else
 		{
-			std::cout << "Not supported" << std::endl;
-		}
+			LOMatrix mat;
 
-		std::cout << "Generated succesfully..." << std::endl;
+			LOMode loMode = (LOMode)(mode / 4);
+			bool   useA   = ((mode % 4) >> 1) & 0x01;
+			bool   useEL  = ((mode % 4) >> 0) & 0x01;
 
-		std::wstring filename;
+			if(loMode == LIGHTS_OUT)
+			{
+				mat.Load(L"Maa.bmp", size_matrix);
+			}
+			else if(loMode == TOROID_LOUT)
+			{
+				mat.LoadToroid(L"Maa.bmp", size_matrix);
+			}
+			else if(loMode == LIGHTS_TROUT)
+			{
+				mat.LoadBig(L"Ma.bmp");
+			}
 
-		if(!useA)
-		{
-			mat = mat.Inverto();
-			filename = L"Am.bmp";
-			std::cout << "Diagonalized succesfully..." << std::endl;
-		}
-		else
-		{
-			filename = L"Ma.bmp";
-		}
+			std::cout << "Generated succesfully..." << std::endl;
 
-		if(!useEL)
-		{
-			mat.Save(filename);
-		}
-		else
-		{
-			mat.SaveBorderless(filename);
-		}
+			std::wstring filename;
 
-		std::cout << "Saved succesfully! Completed." << std::endl;
+			if(!useA)
+			{
+				mat = mat.Inverto();
+				filename = L"Am.bmp";
+				std::cout << "Diagonalized succesfully..." << std::endl;
+			}
+			else
+			{
+				filename = L"Ma.bmp";
+			}
+
+			if(!useEL)
+			{
+				mat.Save(filename);
+			}
+			else
+			{
+				mat.SaveBorderless(filename);
+			}
+
+			std::cout << "Saved succesfully! Completed." << std::endl;
+		}
 	}
 
 	system("pause");

@@ -1,81 +1,6 @@
 #include "LOPictureReader.hpp"
 #include <iostream>
 
-//LOMatrix ReadMatrixFromMemory(const std::vector<byte>& bytes, int width, int height, int losize, int bytesPerData, int stride)
-//{
-//	int si_si = losize * losize;
-//
-//	LOMatrix matrix;
-//	matrix.resize(si_si);
-//	for(size_t i = 0; i < si_si; i++)
-//	{
-//		matrix[i].resize(si_si, 0);
-//	}
-//
-//	if(bytesPerData != 3 && bytesPerData != 4)
-//	{
-//		return matrix;
-//	}
-//
-//	for(int i = 0; i < height; i++)
-//	{
-//		const byte* memoryStart = bytes.data() + i * stride;
-//
-//		for(int j = 0; j < width; j++)
-//		{
-//			const byte* pixelStart = memoryStart + j * bytesPerData;
-//
-//			const byte b = *(pixelStart + 0);
-//			const byte g = *(pixelStart + 1);
-//			const byte r = *(pixelStart + 2);
-//
-//			int matIBig = i / losize;
-//			int matJBig = j / losize;
-//			int matISm  = i % losize;
-//			int matJSm  = j % losize;
-//
-//			int indexBig = matIBig * losize + matJBig;
-//			int indexSm  = matISm  * losize + matJSm;
-//			matrix[indexBig].set(indexSm, g < 120);
-//		}
-//	}
-//
-//	return matrix;
-//}
-//
-//LOMatrix ReadMatrixSmFromMemory(const std::vector<byte>& bytes, int width, int height, int loSize, int bytesPerData, int stride)
-//{
-//	int si_si = loSize * loSize;
-//
-//	LOMatrix matrix;
-//	matrix.resize(si_si);
-//	for(size_t i = 0; i < si_si; i++)
-//	{
-//		matrix[i].resize(si_si, 0);
-//	}
-//
-//	if(bytesPerData != 3 && bytesPerData != 4)
-//	{
-//		return matrix;
-//	}
-//
-//	std::vector<boost::dynamic_bitset<>> factor;
-//	factor.resize(height);
-//	for(int i = 0; i < factor.size(); i++)
-//	{
-//		factor[i].resize(width, 0);
-//	}
-
-
-
-
-
-//
-//	
-//
-//	return matrix;
-//}
-
 LOPictureReader::LOPictureReader(const std::wstring& filename, uint32_t gamesize, PictureLoadMode loadMode): mFileHandle(nullptr), mGameSize(gamesize), mLoadMode(loadMode)
 {
 	mImageWidth    = 0;
@@ -134,8 +59,10 @@ void LOPictureReader::ReadMetadata()
 					mImageHeight   = abs(bmpInfoHeader.biHeight);
 					mImageWidthSm  = (uint32_t)sqrt(mImageWidth);
 					mImageHeightSm = (uint32_t)sqrt(mImageHeight);
+					mGameSize      = mImageWidthSm;
 					break;
 				case PictureLoadMode::BORDERLESS_SMALL:
+				case PictureLoadMode::BORDERLESS_SMALL_TOR:
 					mImageWidthSm  = abs(bmpInfoHeader.biWidth);
 					mImageHeightSm = abs(bmpInfoHeader.biHeight);
 					mImageWidth    = mImageWidthSm * mImageWidthSm;
@@ -147,6 +74,7 @@ void LOPictureReader::ReadMetadata()
 
 				if(mImageWidth != mImageHeight ||
 			      (mLoadMode == PictureLoadMode::BORDERLESS_SMALL && mImageWidth % 2 == 0) ||
+				  (mLoadMode == PictureLoadMode::BORDERLESS_SMALL_TOR && mImageWidth % 2 == 0) ||
 			      (mLoadMode == PictureLoadMode::BORDERLESS && (mImageWidthSm * mImageWidthSm != mImageWidth || mImageHeightSm * mImageHeightSm != mImageHeight)))
 				{
 					std::cout << "Wrong file size!" << std::endl;
@@ -174,6 +102,7 @@ void LOPictureReader::ReadMetadata()
 							mTempBuf.resize(mImageStrideBytes);
 							break;
 						case PictureLoadMode::BORDERLESS_SMALL:
+						case PictureLoadMode::BORDERLESS_SMALL_TOR:
 							widthBytes = mPixelByteSize * mImageWidthSm;
 							mImageStrideBytes = (widthBytes + 3) & (~3);
 							mTempBuf.resize(mImageStrideBytes * mImageHeightSm);
@@ -193,6 +122,7 @@ void LOPictureReader::ReadBeginning()
 	case PictureLoadMode::BORDERLESS:
 		break;
 	case PictureLoadMode::BORDERLESS_SMALL:
+	case PictureLoadMode::BORDERLESS_SMALL_TOR:
 		ReadSmallPicture();
 		break;
 	default:
@@ -210,6 +140,9 @@ void LOPictureReader::ReadNextRow(boost::dynamic_bitset<uint64_t>& row, uint32_t
 	case PictureLoadMode::BORDERLESS_SMALL:
 		ReadNextRowSmall(row, rowIndex);
 		break;
+	case PictureLoadMode::BORDERLESS_SMALL_TOR:
+		ReadNextRowSmallTor(row, rowIndex);
+		break;
 	default:
 		break;
 	}
@@ -220,6 +153,11 @@ bool LOPictureReader::IsValidImage()
 	return mFileHandle != INVALID_HANDLE_VALUE && mPixelByteSize != 0;
 }
 
+uint32_t LOPictureReader::GetGameSize() const
+{
+	return mGameSize;
+}
+
 void LOPictureReader::ReadNextRowRegular(boost::dynamic_bitset<uint64_t>& row, uint32_t rowIndex)
 {
 	if (!ReadFile(mFileHandle, mTempBuf.data(), mTempBuf.size(), nullptr, nullptr))
@@ -228,20 +166,19 @@ void LOPictureReader::ReadNextRowRegular(boost::dynamic_bitset<uint64_t>& row, u
 	}
 	else
 	{
-		std::cout << "NOT IMPLEMENTED" << std::endl;
-		/*if (bmpInfoHeader.biHeight > 0)
+		row.clear();
+		row.resize(mImageWidth);
+
+		for (int i = 0; i < mImageWidth; i++)
 		{
-			std::vector<byte> bitmapDataReversed(bitmapData.size());
-			for (size_t i = 0; i < height; i++)
-			{
-				int iR = height - i - 1;
-				memcpy_s(bitmapDataReversed.data() + i * stride, bitmapDataReversed.size() - (i * stride), bitmapData.data() + iR * stride, stride);
-			}
+			const byte* pixelStart = mTempBuf.data() + i * mPixelByteSize;
 
-			bitmapData = bitmapDataReversed;
+			const byte b = *(pixelStart + 0);
+			const byte g = *(pixelStart + 1);
+			const byte r = *(pixelStart + 2);
+
+			row.set(i, g < 120);
 		}
-
-		result = ReadMatrixSmFromMemory(bitmapData, width, height, loSize, bitCount / 8, stride);*/
 	}
 }
 
@@ -307,10 +244,234 @@ void LOPictureReader::ReadNextRowSmall(boost::dynamic_bitset<uint64_t>& row, uin
 	}
 }
 
+void LOPictureReader::ReadNextRowSmallTor(boost::dynamic_bitset<uint64_t>& row, uint32_t rowIndex)
+{
+	const uint32_t si_si = mGameSize * mGameSize;
+	boost::dynamic_bitset<uint64_t> factor;
+	factor.resize(mImageWidthSm * mImageHeightSm);
+
+	for (int i = 0; i < mImageHeightSm; i++)
+	{
+		const byte* imgLinePtr = mTempBuf.data() + i * mImageStrideBytes;
+
+		for (int j = 0; j < mImageWidthSm; j++)
+		{
+			const byte* pixelStart = imgLinePtr + j * mPixelByteSize;
+
+			const byte b = *(pixelStart + 0);
+			const byte g = *(pixelStart + 1);
+			const byte r = *(pixelStart + 2);
+
+			size_t cellIndex = i * mImageWidthSm + j;
+			factor.set(cellIndex, g < 120);
+		}
+	}
+
+	int smallWidthHalf  = mImageWidthSm  / 2;
+	int smallHeightHalf = mImageHeightSm / 2;
+
+	int rowIndexBig = rowIndex / mGameSize;
+	int rowIndexSm  = rowIndex % mGameSize;
+
+	int topmostRow       = mod(rowIndexBig - smallHeightHalf, mGameSize);
+	int newSmallRowIndex = mod(rowIndexSm - topmostRow, mGameSize);
+
+	if(mImageHeightSm <= mGameSize)
+	{
+		if(newSmallRowIndex >= mImageHeightSm)
+		{
+			row.reset();
+		}
+		else
+		{
+			for(int colIndexBig = 0; colIndexBig < mGameSize; colIndexBig++)
+			{
+				for(int colIndexSm = 0; colIndexSm < mGameSize; colIndexSm++)
+				{
+					int leftmostCol = mod(colIndexBig - smallWidthHalf, mGameSize);
+					if(mImageWidthSm <= mGameSize)
+					{
+						int newSmallColIndex = mod(colIndexSm - leftmostCol, mGameSize);
+						if(newSmallColIndex >= mImageWidthSm)
+						{
+							row.set(colIndexBig * mGameSize + colIndexSm, 0);
+						}
+						else
+						{
+							row.set(colIndexBig * mGameSize + colIndexSm, factor[newSmallRowIndex * mImageWidthSm + newSmallColIndex]);
+						}
+					}
+					else
+					{
+						//TODO
+					}
+				}
+			}
+		}
+	}
+	else
+	{
+		int fullRowsTied = mImageHeightSm / mGameSize;
+
+		std::vector<boost::dynamic_bitset<uint64_t>> tiedRows;
+		tiedRows.resize(fullRowsTied);
+
+		for(int r = 0; r < fullRowsTied; r++)
+		{
+			int rowIndexSmTied = newSmallRowIndex + r * mGameSize;
+			tiedRows[r].resize(row.size());
+
+			if(mImageWidthSm <= mGameSize)
+			{
+				for (int colIndexBig = 0; colIndexBig < mGameSize; colIndexBig++)
+				{
+					for (int colIndexSm = 0; colIndexSm < mGameSize; colIndexSm++)
+					{
+						int leftmostCol = mod(colIndexBig - smallWidthHalf, mGameSize);
+
+						int newSmallColIndex = mod(colIndexSm - leftmostCol, mGameSize);
+						if (newSmallColIndex >= mImageWidthSm)
+						{
+							tiedRows[r].set(colIndexBig * mGameSize + colIndexSm, 0);
+						}
+						else
+						{
+							tiedRows[r].set(colIndexBig * mGameSize + colIndexSm, factor[rowIndexSmTied * mImageWidthSm + newSmallColIndex]);
+						}
+					}
+				}
+			}
+			else
+			{
+				for(int colIndexBig = 0; colIndexBig < mGameSize; colIndexBig++)
+				{
+					int fullColsTied = mImageWidthSm / mGameSize;
+					int leftmostCol  = mod(colIndexBig - smallWidthHalf, mGameSize);
+
+					std::vector<boost::dynamic_bitset<uint64_t>> tiedBigCols;
+					tiedBigCols.resize(fullColsTied);
+
+					for(int c = 0; c < fullColsTied; c++)
+					{
+						tiedBigCols[c].resize(mGameSize);
+
+						for(int colIndexSm = 0; colIndexSm < mGameSize; colIndexSm++)
+						{
+							int newSmallColIndex = mod(colIndexSm - leftmostCol, mGameSize);
+
+							int overlappedColIndex = colIndexSm + c * mGameSize;
+							tiedBigCols[c].set(newSmallColIndex, factor[rowIndexSmTied * mImageWidthSm + overlappedColIndex]);
+						}
+					}
+
+					boost::dynamic_bitset<uint64_t> finalTiedBigCol;
+					finalTiedBigCol.resize(mGameSize);
+					finalTiedBigCol.reset();
+					for(auto dbs : tiedBigCols)
+					{
+						finalTiedBigCol ^= dbs;
+					}
+
+					int lastColTieStart = fullColsTied * mGameSize;
+					for(int tieColIndex = lastColTieStart; tieColIndex < mImageWidthSm; tieColIndex++)
+					{
+						finalTiedBigCol[tieColIndex - lastColTieStart] ^= factor[rowIndexSmTied * mImageWidthSm + tieColIndex];
+					}
+
+					for(int colIndexSm = 0; colIndexSm < mGameSize; colIndexSm++)
+					{
+						tiedRows[r].set(colIndexBig * mGameSize + colIndexSm, finalTiedBigCol[colIndexSm]);
+					}
+				}
+			}
+		}
+
+		boost::dynamic_bitset<uint64_t> finalTiedRow;
+		finalTiedRow.resize(mGameSize * mGameSize);
+		finalTiedRow.reset();
+		for (auto dbs: tiedRows)
+		{
+			finalTiedRow ^= dbs;
+		}
+
+		int lastRowTieLength = mImageHeightSm - fullRowsTied * mGameSize;
+		if(newSmallRowIndex < lastRowTieLength)
+		{
+			int lastRowTieIndex = fullRowsTied * mGameSize + newSmallRowIndex;
+			if (mImageWidthSm <= mGameSize)
+			{
+				for (int colIndexBig = 0; colIndexBig < mGameSize; colIndexBig++)
+				{
+					for (int colIndexSm = 0; colIndexSm < mGameSize; colIndexSm++)
+					{
+						int leftmostCol = mod(colIndexBig - smallWidthHalf, mGameSize);
+
+						int newSmallColIndex = mod(colIndexSm - leftmostCol, mGameSize);
+						if (newSmallColIndex < mImageWidthSm)
+						{
+							finalTiedRow[colIndexBig * mGameSize + colIndexSm] ^= factor[lastRowTieIndex * mImageWidthSm + newSmallColIndex];
+						}
+					}
+				}
+			}
+			else
+			{
+				for (int colIndexBig = 0; colIndexBig < mGameSize; colIndexBig++)
+				{
+					int fullColsTied = mImageWidthSm / mGameSize;
+					int leftmostCol = mod(colIndexBig - smallWidthHalf, mGameSize);
+
+					std::vector<boost::dynamic_bitset<uint64_t>> tiedBigCols;
+					tiedBigCols.resize(fullColsTied);
+
+					for (int c = 0; c < fullColsTied; c++)
+					{
+						tiedBigCols[c].resize(mGameSize);
+
+						for (int colIndexSm = 0; colIndexSm < mGameSize; colIndexSm++)
+						{
+							int newSmallColIndex = mod(colIndexSm - leftmostCol, mGameSize);
+
+							int overlappedColIndex = newSmallColIndex + c * mGameSize;
+							tiedBigCols[c].set(colIndexSm, factor[lastRowTieIndex * mImageWidthSm + overlappedColIndex]);
+						}
+					}
+
+					boost::dynamic_bitset<uint64_t> finalTiedBigCol;
+					finalTiedBigCol.resize(mGameSize);
+					finalTiedBigCol.reset();
+					for (auto dbs : tiedBigCols)
+					{
+						finalTiedBigCol ^= dbs;
+					}
+
+					int lastColTieStart = leftmostCol + fullColsTied * mGameSize;
+					for (int tieColIndex = lastColTieStart; tieColIndex < mImageWidthSm; tieColIndex++)
+					{
+						finalTiedBigCol[tieColIndex - lastColTieStart] ^= factor[lastRowTieIndex * mImageWidthSm + tieColIndex];
+					}
+
+					for (int colIndexSm = 0; colIndexSm < mGameSize; colIndexSm++)
+					{
+						finalTiedRow[colIndexBig * mGameSize + colIndexSm] ^= finalTiedBigCol[colIndexSm];
+					}
+				}
+			}
+		}
+
+		row = finalTiedRow;
+	}
+}
+
 void LOPictureReader::ReadSmallPicture()
 {
 	if(!ReadFile(mFileHandle, mTempBuf.data(), mTempBuf.size(), nullptr, nullptr))
 	{
 		std::cout << "Error reading file!" << std::endl;
 	}
+}
+
+int LOPictureReader::mod(int a, int b)
+{
+	return ((((a) % b) + b) % b);
 }

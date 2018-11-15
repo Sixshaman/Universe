@@ -15,6 +15,7 @@ public:
 	uint32_t CheckInv();
 
 	void Load(const std::wstring& filename, uint32_t gameSize);
+	void LoadToroid(const std::wstring& filename, uint32_t gameSize);
 	void LoadBig(const std::wstring& filename);
 
 	void Save(const std::wstring& filename);
@@ -22,8 +23,11 @@ public:
 
 private:
 	void LoadDefault(uint32_t size);
+	void LoadDefaultTor(uint32_t size);
 
 	void SaveMatrix(const std::wstring& filename, PictureSaveMode saveMode);
+
+	int mod(int a, int b);
 
 private:
 	uint32_t                                     mSize;

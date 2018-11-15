@@ -3,7 +3,8 @@
 enum class PictureLoadMode
 {
 	BORDERLESS,
-	BORDERLESS_SMALL
+	BORDERLESS_SMALL,
+	BORDERLESS_SMALL_TOR
 };
 
 enum class PictureSaveMode

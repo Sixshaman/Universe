@@ -149,9 +149,118 @@ void LOMatrix::Load(const std::wstring& filename, uint32_t gameSize)
 	}
 }
 
+void LOMatrix::LoadToroid(const std::wstring & filename, uint32_t gameSize)
+{
+	mSize = gameSize;
+	mQuietPatternBase = mSize * mSize;
+
+	int si_si = mSize * mSize;
+	mRows.clear();
+	mRowsInverto.clear();
+
+	for (int i = 0; i < si_si; i++)
+	{
+		mRows.push_back(boost::dynamic_bitset<uint64_t>(si_si));
+	}
+
+	LOPictureReader reader(filename, mSize, PictureLoadMode::BORDERLESS_SMALL_TOR);
+	reader.ReadMetadata();
+
+	if(reader.IsValidImage())
+	{
+		reader.ReadBeginning();
+
+		std::vector<boost::dynamic_bitset<uint64_t>> matrixTrouted;
+		matrixTrouted.resize(mRows.size());
+		for (size_t i = 0; i < mRows.size(); i++)
+		{
+			matrixTrouted[i].resize(mRows.size());
+		}
+
+		for (int i = 0; i < si_si; i++)
+		{
+			reader.ReadNextRow(matrixTrouted[i], i);
+		}
+
+		for (size_t i = 0; i < matrixTrouted.size(); i++)
+		{
+			size_t iBig = i / mSize;
+			size_t jBig = i % mSize;
+
+			for (size_t j = 0; j < matrixTrouted[i].size(); j++)
+			{
+				size_t iSm = j / mSize;
+				size_t jSm = j % mSize;
+
+				size_t row    = iBig * mSize + iSm;
+				size_t column = jBig * mSize + jSm;
+
+				mRows[row].set(column, matrixTrouted[i][j]);
+			}
+		}
+	}
+	else
+	{
+		std::cout << "USING DEFAULT MATRIX" << std::endl;
+		LoadDefaultTor(gameSize);
+	}
+}
+
 void LOMatrix::LoadBig(const std::wstring& filename)
 {
+	LOPictureReader reader(filename, 0, PictureLoadMode::BORDERLESS);
+	reader.ReadMetadata();
 
+	mSize             = reader.GetGameSize();
+	mQuietPatternBase = mSize * mSize;
+
+	int si_si = mSize * mSize;
+	mRows.clear();
+	mRowsInverto.clear();
+
+	for (int i = 0; i < si_si; i++)
+	{
+		mRows.push_back(boost::dynamic_bitset<uint64_t>(si_si));
+	}
+
+	if(reader.IsValidImage())
+	{
+		reader.ReadBeginning();
+
+		std::vector<boost::dynamic_bitset<uint64_t>> matrixTrouted;
+		matrixTrouted.resize(mRows.size());
+		for (size_t i = 0; i < mRows.size(); i++)
+		{
+			matrixTrouted[i].resize(mRows.size());
+		}
+
+		for (int i = 0; i < si_si; i++)
+		{
+			reader.ReadNextRow(matrixTrouted[matrixTrouted.size() - i - 1], i);
+		}
+
+		for (size_t i = 0; i < matrixTrouted.size(); i++)
+		{
+			size_t iBig = i / mSize;
+			size_t jBig = i % mSize;
+
+			for (size_t j = 0; j < matrixTrouted[i].size(); j++)
+			{
+				size_t iSm = j / mSize;
+				size_t jSm = j % mSize;
+
+				size_t row    = iBig * mSize + iSm;
+				size_t column = jBig * mSize + jSm;
+
+				mRows[row].set(column, matrixTrouted[i][j]);
+			}
+		}
+	}
+	else
+	{
+		std::cout << "USING DEFAULT MATRIX 7X7" << std::endl;
+		LoadDefault(7);
+	}
 }
 
 void LOMatrix::Save(const std::wstring& filename)
@@ -189,6 +298,44 @@ void LOMatrix::LoadDefault(uint32_t size)
 	}
 }
 
+void LOMatrix::LoadDefaultTor(uint32_t size)
+{
+	mSize = size;
+	mQuietPatternBase = mSize * mSize;
+
+	int si_si = size * size;
+	mRows.clear();
+	mRowsInverto.clear();
+
+	for (int i = 0; i < si_si; i++)
+	{
+		mRows.push_back(boost::dynamic_bitset<uint64_t>(si_si));
+		mRows.back().reset();
+	}
+
+	for(int i = 0; i < si_si; i++)
+	{
+		int iBig = i / mSize;
+		int iSm  = i % mSize;
+
+		int rightSm = mod(iSm + 1, mSize);
+		int leftSm  = mod(iSm - 1, mSize);
+		int topBig  = mod(iBig - 1, mSize);
+		int botBig  = mod(iBig + 1, mSize);
+
+		int top   = topBig * mSize + iSm;
+		int bot   = botBig * mSize + iSm;
+		int left  = iBig * mSize + leftSm;
+		int right = iBig * mSize + rightSm;
+
+		mRows[i].set(i);
+		mRows[i].set(top);
+		mRows[i].set(bot);
+		mRows[i].set(left);
+		mRows[i].set(right);
+	}
+}
+
 void LOMatrix::SaveMatrix(const std::wstring & filename, PictureSaveMode saveMode)
 {
 	std::vector<boost::dynamic_bitset<uint64_t>> matrixTrouted;
@@ -223,4 +370,9 @@ void LOMatrix::SaveMatrix(const std::wstring & filename, PictureSaveMode saveMod
 	{
 		writer.WriteRow(matrixTrouted[i], i);
 	}
+}
+
+int LOMatrix::mod(int a, int b)
+{
+	return ((((a) % b) + b) % b);
 }

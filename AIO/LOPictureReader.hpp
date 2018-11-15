@@ -17,11 +17,16 @@ public:
 
 	bool IsValidImage();
 
+	uint32_t GetGameSize() const;
+
 private:
 	void ReadNextRowRegular(boost::dynamic_bitset<uint64_t>& row, uint32_t rowIndex);
 	void ReadNextRowSmall(boost::dynamic_bitset<uint64_t>& row, uint32_t rowIndex);
+	void ReadNextRowSmallTor(boost::dynamic_bitset<uint64_t>& row, uint32_t rowIndex);
 
 	void ReadSmallPicture();
+
+	int mod(int a, int b);
 
 private:
 	HANDLE          mFileHandle;
