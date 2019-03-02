@@ -10,11 +10,15 @@ enum LOMode
 
 int main(int argc, char *argv[])
 {
-	int size_matrix = 0;
-	int mode        = -1;
+	int size_matrix  =  0;
+	int power_matrix =  1;
+	int mode         = -1;
 
 	std::cout << "Enter size. Enter -1 to check for normal solvability and -2 to check for toroidal solvability" << std::endl;
 	std::cin >> size_matrix;
+
+	std::cout << "Enter matrix power" << std::endl;
+	std::cin >> power_matrix;
 
 	if(size_matrix < 0)
 	{
@@ -109,6 +113,12 @@ int main(int argc, char *argv[])
 			else
 			{
 				filename = L"Ma.bmp";
+			}
+
+			LOMatrix mulMat = mat;
+			for(int i = 0; i < power_matrix - 1; i++)
+			{
+				mulMat.Mul(mat);
 			}
 
 			if(!useEL)

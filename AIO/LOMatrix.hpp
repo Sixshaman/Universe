@@ -14,6 +14,8 @@ public:
 	LOMatrix Inverto();
 	uint32_t CheckInv();
 
+	void Mul(const LOMatrix& right);
+
 	void Load(const std::wstring& filename, uint32_t gameSize);
 	void LoadToroid(const std::wstring& filename, uint32_t gameSize);
 	void LoadBig(const std::wstring& filename);

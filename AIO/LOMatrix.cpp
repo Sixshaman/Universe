@@ -92,6 +92,40 @@ uint32_t LOMatrix::CheckInv()
 	return mQuietPatternBase;
 }
 
+void LOMatrix::Mul(const LOMatrix& right)
+{
+	if(right.mSize != mSize)
+	{
+		return;
+	}
+
+	std::vector<boost::dynamic_bitset<uint64_t>> rowsNew;
+	rowsNew.resize(mRows.size());
+	for(size_t i = 0; i < mRows.size(); i++)
+	{
+		rowsNew[i].resize(mRows[i].size(), 0);
+	}
+
+	for(size_t i = 0; i < rowsNew.size(); i++)
+	{
+		boost::dynamic_bitset<uint64_t> rowM = mRows[i];
+		for(size_t j = 0; j < rowsNew[i].size(); j++)
+		{
+			boost::dynamic_bitset<uint64_t> colM;
+			colM.resize(rowM.size(), false);
+			for(size_t k = 0; k < colM.size(); k++)
+			{
+				colM.set(k, right.mRows[k][j]);
+			}
+
+			bool resMul = ((rowM & colM).count() % 2) == 1;
+			rowsNew[i][j] = resMul;
+		}
+	}
+
+	mRows = rowsNew;
+}
+
 void LOMatrix::Load(const std::wstring& filename, uint32_t gameSize)
 {
 	mSize = gameSize;
