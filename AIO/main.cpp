@@ -123,11 +123,11 @@ int main(int argc, char *argv[])
 
 			if(!useEL)
 			{
-				mat.Save(filename);
+				mulMat.Save(filename);
 			}
 			else
 			{
-				mat.SaveBorderless(filename);
+				mulMat.SaveBorderless(filename);
 			}
 
 			std::cout << "Saved succesfully! Completed." << std::endl;

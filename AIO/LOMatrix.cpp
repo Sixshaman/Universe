@@ -123,7 +123,13 @@ void LOMatrix::Mul(const LOMatrix& right)
 		}
 	}
 
-	mRows = rowsNew;
+	for(int tt = 0; tt < mRows.size(); tt++)
+	{
+		for(int pp = 0; pp < mRows[tt].size(); pp++)
+		{
+			mRows[tt].set(pp, rowsNew[tt][pp]);
+		}
+	}
 }
 
 void LOMatrix::Load(const std::wstring& filename, uint32_t gameSize)
