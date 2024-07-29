@@ -14,6 +14,8 @@ public:
 	LOMatrix Inverto();
 	uint32_t CheckInv();
 
+	void SetIdentity(uint32_t gameSize);
+
 	void Mul(const LOMatrix& right);
 
 	void Load(const std::wstring& filename, uint32_t gameSize);

@@ -92,6 +92,18 @@ uint32_t LOMatrix::CheckInv()
 	return mQuietPatternBase;
 }
 
+void LOMatrix::SetIdentity(uint32_t size)
+{
+	mSize = size;
+
+	mRows.resize(mSize * mSize);
+	for(uint32_t i = 0; i < mSize * mSize; i++)
+	{
+		mRows[i].resize(mSize * mSize);
+		mRows[i].set(i, 1);
+	}
+}
+
 void LOMatrix::Mul(const LOMatrix& right)
 {
 	if(right.mSize != mSize)
@@ -106,29 +118,40 @@ void LOMatrix::Mul(const LOMatrix& right)
 		rowsNew[i].resize(mRows[i].size(), 0);
 	}
 
-	for(size_t i = 0; i < rowsNew.size(); i++)
+	assert(right.mRows.size() > 0 && right.mRows.size() == right.mRows[0].size());
+	
+	std::vector<boost::dynamic_bitset<uint64_t>> rightColumnMajor;
+	rightColumnMajor.resize(right.mRows.size());
+	for(size_t j = 0; j < right.mRows[0].size(); j++)
 	{
-		boost::dynamic_bitset<uint64_t> rowM = mRows[i];
+		rightColumnMajor[j].resize(right.mRows.size());
+	}
+
+	for(size_t i = 0; i < right.mRows.size(); i++)
+	{
+		for(size_t j = 0; j < mRows.size(); j++)
+		{
+			rightColumnMajor[j].set(i, right.mRows[i][j]);
+		}
+	}
+
+#pragma omp parallel for
+	for(int i = 0; i < (int)mRows.size(); i++)
+	{
+		const boost::dynamic_bitset<uint64_t>& leftMatrixRow = mRows[i];
+
 		for(size_t j = 0; j < rowsNew[i].size(); j++)
 		{
-			boost::dynamic_bitset<uint64_t> colM;
-			colM.resize(rowM.size(), false);
-			for(size_t k = 0; k < colM.size(); k++)
-			{
-				colM.set(k, right.mRows[k][j]);
-			}
+			const boost::dynamic_bitset<uint64_t>& rightMatrixColumn = rightColumnMajor[j];
 
-			bool resMul = ((rowM & colM).count() % 2) == 1;
+			bool resMul = ((leftMatrixRow & rightMatrixColumn).count() % 2) == 1;
 			rowsNew[i][j] = resMul;
 		}
 	}
 
-	for(int tt = 0; tt < mRows.size(); tt++)
+	for(int i = 0; i < mRows.size(); i++)
 	{
-		for(int pp = 0; pp < mRows[tt].size(); pp++)
-		{
-			mRows[tt].set(pp, rowsNew[tt][pp]);
-		}
+		mRows[i].swap(rowsNew[i]);
 	}
 }
 

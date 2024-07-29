@@ -1,5 +1,6 @@
 #include <iostream>
 #include "LOMatrix.hpp"
+#include <bit>
 
 enum LOMode
 {
@@ -115,10 +116,38 @@ int main(int argc, char *argv[])
 				filename = L"Ma.bmp";
 			}
 
-			LOMatrix mulMat = mat;
-			for(int i = 0; i < power_matrix - 1; i++)
+			LOMatrix mulMat;
+			if(power_matrix == 1)
 			{
-				mulMat.Mul(mat);
+				mulMat = mat;
+			}
+			else
+			{
+				uint32_t totalMatrixPower = 0;
+				mulMat.SetIdentity(size_matrix);
+
+				//Store 5 matrices at most; at 256x256 board size, the matrix requires 4GB of memory
+				uint32_t remainder = power_matrix;
+				while(remainder != 0)
+				{
+					uint32_t currPowerRequired = std::bit_floor(remainder);
+					uint32_t currMatrixPower = 1;
+
+					LOMatrix currMatrix = mat;
+					while(currMatrixPower < currPowerRequired)
+					{
+						currMatrix.Mul(currMatrix);
+						currMatrixPower *= 2;
+
+						std::cout << "Calculated power of " << currMatrixPower << std::endl;
+					}
+
+					mulMat.Mul(currMatrix);
+					remainder -= currMatrixPower;
+					totalMatrixPower += currMatrixPower;
+
+					std::cout << "Calculated power of " << totalMatrixPower << std::endl;
+				}
 			}
 
 			if(!useEL)
