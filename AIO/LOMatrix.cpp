@@ -2,6 +2,71 @@
 #include "LOPictureWriter.hpp"
 #include "LOPictureReader.hpp"
 #include <iostream>
+#include <boost/multiprecision/cpp_int.hpp>
+#include <format>
+#include <bit>
+
+uint32_t FindTrajectoryCycleLength(uint32_t n)
+{
+	//https://oeis.org/A309786
+	//If n = 2^n or 3*2^n, return 1.
+	//If n = 5*2^n, return 2.
+	//Otherwise, if n is even, return cycle length of n/2.
+	//Finally, if n is odd, return the value of https://oeis.org/A003558 at floor(n/2).
+
+	if(std::has_single_bit(n))
+	{
+		return 1;
+	}
+	else if(n % 3 == 0 && std::has_single_bit(n / 3))
+	{
+		return 1;
+	}
+	else if(n % 5 == 0 && std::has_single_bit(n / 5))
+	{
+		return 2;
+	}
+	else if(n % 2 == 0)
+	{
+		return FindTrajectoryCycleLength(n / 2);
+	}
+	else
+	{
+		uint32_t nn = n / 2;
+
+		uint32_t m = 1;
+		while(true)
+		{
+			boost::multiprecision::cpp_int twoPowered = 2;
+			twoPowered = twoPowered << m;
+
+			uint32_t twoNplus1 = 2 * nn + 1;
+
+			uint32_t remainder = (twoPowered % twoNplus1).convert_to<uint32_t>();
+			if(remainder == 1 || remainder == 2 * nn)
+			{
+				return m + 1;
+			}
+			
+			m++;
+		}
+	}
+}
+
+uint32_t FindEditingStepsPower(uint32_t n)
+{
+	//Finds 2^E, where E is the number of editing steps (delete, insert, or substitute) to transform n into n+1 in binary
+	//If n + 1 = 2^m, then E = m
+	//Otherwise, let m be the highest number such that 2^m divides n + 1. Then E = m + 1.
+	if(std::has_single_bit(n))
+	{
+		return n;
+	}
+	else
+	{
+		return 2 * (1 << std::countr_zero(n));
+	}
+}
 
 LOMatrix::LOMatrix(): mSize(0), mQuietPatternBase(mSize*mSize)
 {
@@ -153,6 +218,19 @@ void LOMatrix::Mul(const LOMatrix& right)
 	{
 		mRows[i].swap(rowsNew[i]);
 	}
+}
+
+boost::dynamic_bitset<uint64_t> LOMatrix::MulBoard(boost::dynamic_bitset<uint64_t>& board)
+{
+	assert(board.size() == mSize * mSize);
+	boost::dynamic_bitset<uint64_t> result(board.size());
+
+	for(uint32_t i = 0; i < mSize * mSize; i++)
+	{
+		result.set(i, (mRows[i] & board).count() % 2);
+	}
+
+	return result;
 }
 
 void LOMatrix::Load(const std::wstring& filename, uint32_t gameSize)
@@ -334,6 +412,19 @@ void LOMatrix::Save(const std::wstring& filename)
 void LOMatrix::SaveBorderless(const std::wstring& filename)
 {
 	SaveMatrix(filename, PictureSaveMode::BORDERLESS);
+}
+
+boost::multiprecision::cpp_int LOMatrix::FindSolutionPeriod(uint32_t gameSize)
+{
+	//(Hypothesis) A solution period of ANY default Lights Out nxn has form:
+	//2^p * (2^q - 1), where q is the (n+1)th value of https://oeis.org/A309786,
+	//and p is the nth value of https://oeis.org/A091090.
+
+	boost::multiprecision::cpp_int solutionPeriod = 1;
+	solutionPeriod *= ((boost::multiprecision::cpp_int(1) << FindTrajectoryCycleLength(gameSize + 1)) - 1);
+	solutionPeriod *= FindEditingStepsPower(gameSize + 1);
+
+	return solutionPeriod;
 }
 
 void LOMatrix::LoadDefault(uint32_t size)

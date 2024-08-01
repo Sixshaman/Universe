@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <boost/dynamic_bitset.hpp>
+#include <boost/multiprecision/cpp_int.hpp>
 #include <string>
 #include "FileModes.hpp"
 
@@ -17,6 +18,7 @@ public:
 	void SetIdentity(uint32_t gameSize);
 
 	void Mul(const LOMatrix& right);
+	boost::dynamic_bitset<uint64_t> MulBoard(boost::dynamic_bitset<uint64_t>& board);
 
 	void Load(const std::wstring& filename, uint32_t gameSize);
 	void LoadToroid(const std::wstring& filename, uint32_t gameSize);
@@ -24,6 +26,8 @@ public:
 
 	void Save(const std::wstring& filename);
 	void SaveBorderless(const std::wstring& filename);
+
+	boost::multiprecision::cpp_int FindSolutionPeriod(uint32_t gameSize);
 
 private:
 	void LoadDefault(uint32_t size);
