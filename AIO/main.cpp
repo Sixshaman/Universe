@@ -560,14 +560,14 @@ int main(int argc, char *argv[])
 			break;
 		}
 
-		uint32_t quietPatterns = mat.CheckInv();
-		if(quietPatterns == 0)
+		LOMatrix inverto = mat.InvertMatrix();
+		if(inverto.GetQuietPatternsCount() == 0)
 		{
 			resultMessage += " is solvable";
 		}
 		else
 		{
-			resultMessage += std::format(" is unsolvable ({} quiet patterns)", quietPatterns);
+			resultMessage += std::format(" is unsolvable ({} quiet patterns)", inverto.GetQuietPatternsCount());
 		}
 
 		std::cout << resultMessage << std::endl;
@@ -622,14 +622,14 @@ int main(int argc, char *argv[])
 		std::wstring filename;
 		if(launchOptions.LaunchMode == LaunchMode::BuildInvertedMatrix)
 		{
-			mat = mat.Inverto();	
+			mat = mat.InvertMatrix();	
 			if(launchOptions.Verbose)
 			{
 				std::cout << "Diagonalized succesfully..." << std::endl;
 			}
 		}
 
-		LOMatrix mulMat = mat.CalcMatrixPower(launchOptions.MatrixPower, launchOptions.Verbose);
+		mat = mat.CalcMatrixPower(launchOptions.MatrixPower, launchOptions.Verbose);
 
 		std::string outFilename = launchOptions.OutMatrixFilename;
 		if(outFilename.empty())
@@ -641,11 +641,11 @@ int main(int argc, char *argv[])
 
 		if(launchOptions.SaveMode == SaveMode::SaveWithBorders)
 		{
-			mulMat.SaveMatrix(outFilename);
+			mat.SaveMatrix(outFilename);
 		}
 		else if(launchOptions.SaveMode == SaveMode::SaveNoBorders)
 		{
-			mulMat.SaveMatrixBorderless(outFilename);
+			mat.SaveMatrixBorderless(outFilename);
 		}
 
 		std::cout << "Saved succesfully! Completed." << std::endl;

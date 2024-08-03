@@ -19,13 +19,14 @@ public:
 	LOMatrix();
 	~LOMatrix();
 
-	LOMatrix Inverto();
-	uint32_t CheckInv();
+	uint32_t GetQuietPatternsCount();
 
 	void SetIdentity(uint32_t gameSize);
 
-	void Mul(const LOMatrix& right);
+	LOMatrix Mul(const LOMatrix& right);
 	boost::dynamic_bitset<uint64_t> MulBoard(boost::dynamic_bitset<uint64_t>& board);
+
+	LOMatrix InvertMatrix();
 
 	LOMatrix CalcMatrixPower(const boost::multiprecision::cpp_int& matrixPower, bool bVerbose);
 
@@ -47,8 +48,8 @@ private:
 	int mod(int a, int b);
 
 private:
-	uint32_t                                     mSize;
-	uint32_t                                     mQuietPatternBase;
+	uint32_t mSize             = 0;
+	uint32_t mQuietPatternBase = 0;
+
 	std::vector<boost::dynamic_bitset<uint64_t>> mRows;
-	std::vector<boost::dynamic_bitset<uint64_t>> mRowsInverto;
 };

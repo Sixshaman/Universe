@@ -76,84 +76,68 @@ LOMatrix::~LOMatrix()
 {
 }
 
-LOMatrix LOMatrix::Inverto()
+LOMatrix LOMatrix::InvertMatrix()
 {
-	if(mRowsInverto.empty())
+	#pragma warning(disable: 6293) //For loops til unsigned overflow are not ill-defined
+
+	LOMatrix result;
+	result.SetIdentity(mSize);
+
+	uint32_t matrixSize = mSize * mSize;
+	for(uint32_t i = 0; i < matrixSize; i++)
 	{
-		int size_size = mRows.size();
-
-		for (int i = 0; i < size_size; i++)
+		if(!mRows[i][i])
 		{
-			mRowsInverto.push_back(boost::dynamic_bitset<uint64_t>(size_size));
-			mRowsInverto[i].set(i);
-		}
-
-		auto base = mRows;
-		for (int i = 0; i < size_size; i++)
-		{
-			if (!base[i][i])
+			for(uint32_t j = i + 1; j < matrixSize; j++)
 			{
-				for (int j = i + 1; j < size_size; j++)
+				if(mRows[j][i])
 				{
-					if (base[j][i])
-					{
-						swap(base[i],         base[j]);
-						swap(mRowsInverto[i], mRowsInverto[j]);
-						break;
-					}
-				}
-			}
-			for (int j = i + 1; j < size_size; j++)
-			{
-				if (base[j][i])
-				{
-					base[j]         ^= base[i];
-					mRowsInverto[j] ^= mRowsInverto[i];
+					std::swap(mRows[i],        mRows[j]);
+					std::swap(result.mRows[i], result.mRows[j]);
+					break;
 				}
 			}
 		}
 
-		for (int i = size_size - 1; i >= 0; i--)
+		for(uint32_t j = i + 1; j < matrixSize; j++)
 		{
-			for (int j = i - 1; j >= 0; j--)
+			if(mRows[j][i])
 			{
-				if (base[j][i])
-				{
-					base[j]         ^= base[i];
-					mRowsInverto[j] ^= mRowsInverto[i];
-				}
-			}
-		}
-
-		mQuietPatternBase = 0;
-		if(base.size() > 0)
-		{
-			for(size_t i = base.size() - 1; i >= 0 && i < base.size(); i--)
-			{
-				if(base[i].none())
-				{
-					mQuietPatternBase++;
-				}
+				mRows[j]        ^= mRows[i];
+				result.mRows[j] ^= result.mRows[i];
 			}
 		}
 	}
 
-	LOMatrix inverto;
-	inverto.mRows             = mRowsInverto;
-	inverto.mRowsInverto      = mRows;
-	inverto.mSize             = mSize;
-	inverto.mQuietPatternBase = mSize * mSize;
+	for(uint32_t i = matrixSize - 1; i < matrixSize; i--)
+	{
+		for(uint32_t j = i - 1; j < matrixSize; j--)
+		{
+			if(mRows[j][i])
+			{
+				mRows[j]        ^= mRows[i];
+				result.mRows[j] ^= result.mRows[i];
+			}
+		}
+	}
 
-	return inverto;
+	result.mQuietPatternBase = 0;
+	if(mRows.size() > 0)
+	{
+		for(size_t i = mRows.size() - 1; i < mRows.size(); i--)
+		{
+			if(mRows[i].none())
+			{
+				result.mQuietPatternBase++;
+			}
+		}
+	}
+
+	return result;
 }
 
-uint32_t LOMatrix::CheckInv()
+uint32_t LOMatrix::GetQuietPatternsCount()
 {
-	if(mQuietPatternBase == mSize * mSize)
-	{
-		Inverto();
-	}
-
 	return mQuietPatternBase;
 }
 
@@ -169,18 +153,20 @@ void LOMatrix::SetIdentity(uint32_t gameSize)
 	}
 }
 
-void LOMatrix::Mul(const LOMatrix& right)
+LOMatrix LOMatrix::Mul(const LOMatrix& right)
 {
 	if(right.mSize != mSize)
 	{
-		return;
+		return *this;
 	}
 
-	std::vector<boost::dynamic_bitset<uint64_t>> rowsNew;
-	rowsNew.resize(mRows.size());
+	LOMatrix result;
+	result.mSize = mSize;
+
+	result.mRows.resize(mRows.size());
 	for(size_t i = 0; i < mRows.size(); i++)
 	{
-		rowsNew[i].resize(mRows[i].size(), 0);
+		result.mRows[i].resize(mRows[i].size(), 0);
 	}
 
 	assert(right.mRows.size() > 0 && right.mRows.size() == right.mRows[0].size());
@@ -205,19 +191,16 @@ void LOMatrix::Mul(const LOMatrix& right)
 	{
 		const boost::dynamic_bitset<uint64_t>& leftMatrixRow = mRows[i];
 
-		for(size_t j = 0; j < rowsNew[i].size(); j++)
+		for(size_t j = 0; j < result.mRows[i].size(); j++)
 		{
 			const boost::dynamic_bitset<uint64_t>& rightMatrixColumn = rightColumnMajor[j];
 
 			bool resMul = ((leftMatrixRow & rightMatrixColumn).count() % 2) == 1;
-			rowsNew[i][j] = resMul;
+			result.mRows[i][j] = resMul;
 		}
 	}
 
-	for(int i = 0; i < mRows.size(); i++)
-	{
-		mRows[i].swap(rowsNew[i]);
-	}
+	return result;
 }
 
 boost::dynamic_bitset<uint64_t> LOMatrix::MulBoard(boost::dynamic_bitset<uint64_t>& board)
@@ -292,7 +275,6 @@ void LOMatrix::LoadSquareClickRule(const std::string& filename, uint32_t gameSiz
 
 	int si_si = mSize * mSize;
 	mRows.clear();
-	mRowsInverto.clear();
 
 	for (int i = 0; i < si_si; i++)
 	{
@@ -349,7 +331,6 @@ void LOMatrix::LoadToroidClickRule(const std::string& filename, uint32_t gameSiz
 
 	int si_si = mSize * mSize;
 	mRows.clear();
-	mRowsInverto.clear();
 
 	for (int i = 0; i < si_si; i++)
 	{
@@ -409,7 +390,6 @@ void LOMatrix::LoadMatrix(const std::string& filename)
 
 	int si_si = mSize * mSize;
 	mRows.clear();
-	mRowsInverto.clear();
 
 	for (int i = 0; i < si_si; i++)
 	{
@@ -486,7 +466,6 @@ void LOMatrix::LoadDefault(uint32_t size)
 
 	int si_si = size * size;
 	mRows.clear();
-	mRowsInverto.clear();
 
 	for (int i = 0; i < si_si; i++)
 	{
@@ -511,7 +490,6 @@ void LOMatrix::LoadDefaultTor(uint32_t size)
 
 	int si_si = size * size;
 	mRows.clear();
-	mRowsInverto.clear();
 
 	for (int i = 0; i < si_si; i++)
 	{
