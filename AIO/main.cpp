@@ -18,7 +18,8 @@ enum class LaunchMode
 	BuildDirectMatrix,
 	BuildInvertedMatrix,
 	CheckSolvability,
-	CalcDefaultClickRuleSolutionPeriod
+	CalcDefaultClickRuleSolutionPeriod,
+	CalcClickRuleSolutionPeriodAndVerify
 };
 
 enum class BoardTopology
@@ -57,6 +58,7 @@ std::optional<LaunchOptions> ParseCommandLineArgs(int argc, char* argv[])
 	bool buildDirectMatrix         = false;
 	bool checkSolvability          = false;
 	bool calcDefaultSolutionPeriod = false;
+	bool calcVerifySolutionPeriod  = false;
 
 	bool saveWithoutBorders   = false;
 	bool saveWithBorders      = false;
@@ -234,6 +236,11 @@ std::optional<LaunchOptions> ParseCommandLineArgs(int argc, char* argv[])
 			calcDefaultSolutionPeriod = true;
 		}
 
+		else if(strcmp(argv[currArg], "--calc_solution_period_verify") == 0)
+		{
+			calcVerifySolutionPeriod = true;
+		}
+
 		else if(strcmp(argv[currArg], "--borders") == 0 || strcmp(argv[currArg], "--default_borders") == 0 || strcmp(argv[currArg], "--with_borders") == 0)
 		{
 			saveWithBorders = true;
@@ -263,15 +270,21 @@ std::optional<LaunchOptions> ParseCommandLineArgs(int argc, char* argv[])
 		return std::nullopt;
 	}
 
-	if(checkSolvability && (calcDefaultSolutionPeriod || buildInverseMatrix || buildDirectMatrix))
+	if(checkSolvability && (calcDefaultSolutionPeriod || calcVerifySolutionPeriod || buildInverseMatrix || buildDirectMatrix))
 	{
 		std::cout << "Error: checking solvability is mutually exclusive with other options." << std::endl;
 		return std::nullopt;
 	}
 
-	if(calcDefaultSolutionPeriod && (checkSolvability || buildInverseMatrix || buildDirectMatrix))
+	if(calcDefaultSolutionPeriod && (calcVerifySolutionPeriod || checkSolvability || buildInverseMatrix || buildDirectMatrix))
 	{
 		std::cout << "Error: calculating solution period is mutually exclusive with other options." << std::endl;
+		return std::nullopt;
+	}
+
+	if(calcVerifySolutionPeriod && (calcDefaultSolutionPeriod || checkSolvability || buildInverseMatrix || buildDirectMatrix))
+	{
+		std::cout << "Error: calculating solution period with verification is mutually exclusive with other options." << std::endl;
 		return std::nullopt;
 	}
 
@@ -300,6 +313,10 @@ std::optional<LaunchOptions> ParseCommandLineArgs(int argc, char* argv[])
 	else if(calcDefaultSolutionPeriod)
 	{
 		result.LaunchMode = LaunchMode::CalcDefaultClickRuleSolutionPeriod;
+	}
+	else if(calcVerifySolutionPeriod)
+	{
+		result.LaunchMode = LaunchMode::CalcClickRuleSolutionPeriodAndVerify;
 	}
 	else if(buildInverseMatrix)
 	{
@@ -386,13 +403,16 @@ bool VerifySolutionPeriod(uint32_t gameSize, const std::string& clickRuleFilenam
 				return false;
 			}
 
-			LOMatrix power2Matrix = mat.CalcMatrixPower(power2Factor);
-			vectorRes = power2Matrix.MulBoard(vectorTest);
-			vectorResSquared = power2Matrix.MulBoard(vectorRes);
-
-			if(vectorRes == vectorResSquared)
+			if(cyclicFactor != 1)
 			{
-				return false;
+				LOMatrix power2Matrix = mat.CalcMatrixPower(power2Factor);
+				vectorRes = power2Matrix.MulBoard(vectorTest);
+				vectorResSquared = power2Matrix.MulBoard(vectorRes);
+
+				if (vectorRes == vectorResSquared)
+				{
+					return false;
+				}
 			}
 		}
 
@@ -419,6 +439,10 @@ void PrintOptions(const LaunchOptions& launchOptions)
 
 	case LaunchMode::CalcDefaultClickRuleSolutionPeriod:
 		std::cout << "calculate solution period for default Lights Out" << std::endl;
+		break;
+
+	case LaunchMode::CalcClickRuleSolutionPeriodAndVerify:
+		std::cout << "calculate and verify solution period for default Lights Out" << std::endl;
 		break;
 
 	default:
@@ -548,7 +572,7 @@ int main(int argc, char *argv[])
 
 		std::cout << resultMessage << std::endl;
 	}
-	else if(launchOptions.LaunchMode == LaunchMode::CalcDefaultClickRuleSolutionPeriod)
+	else if(launchOptions.LaunchMode == LaunchMode::CalcDefaultClickRuleSolutionPeriod || launchOptions.LaunchMode == LaunchMode::CalcClickRuleSolutionPeriodAndVerify)
 	{
 		uint32_t gameWidth = launchOptions.BoardWidth;
 
@@ -556,9 +580,16 @@ int main(int argc, char *argv[])
 		auto solutionPeriod = mat.FindSolutionPeriod(gameWidth);
 		std::cout << std::format("SOLUTION PERIOD for default {}x{} Lights Out: {}", gameWidth, gameWidth, solutionPeriod) << std::endl;
 
-		if(!VerifySolutionPeriod(gameWidth, launchOptions.ClickRuleFilename, solutionPeriod))
+		if(launchOptions.LaunchMode == LaunchMode::CalcClickRuleSolutionPeriodAndVerify)
 		{
-			std::cout << "SOLUTION PERIOD VERIFICATION ERROR!" << std::endl;
+			if(!VerifySolutionPeriod(gameWidth, launchOptions.ClickRuleFilename, solutionPeriod))
+			{
+				std::cout << "SOLUTION PERIOD VERIFICATION ERROR!" << std::endl;
+			}
+			else
+			{
+				std::cout << "Solution period verification success!" << std::endl;
+			}
 		}
 	}
 	else
