@@ -27,7 +27,7 @@ public:
 	void Mul(const LOMatrix& right);
 	boost::dynamic_bitset<uint64_t> MulBoard(boost::dynamic_bitset<uint64_t>& board);
 
-	LOMatrix CalcMatrixPower(const boost::multiprecision::cpp_int& matrixPower);
+	LOMatrix CalcMatrixPower(const boost::multiprecision::cpp_int& matrixPower, bool bVerbose);
 
 	void LoadSquareClickRule(const std::string& filename, uint32_t gameSize);
 	void LoadToroidClickRule(const std::string& filename, uint32_t gameSize);

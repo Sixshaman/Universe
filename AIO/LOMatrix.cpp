@@ -233,7 +233,7 @@ boost::dynamic_bitset<uint64_t> LOMatrix::MulBoard(boost::dynamic_bitset<uint64_
 	return result;
 }
 
-LOMatrix LOMatrix::CalcMatrixPower(const boost::multiprecision::cpp_int& matrixPower)
+LOMatrix LOMatrix::CalcMatrixPower(const boost::multiprecision::cpp_int& matrixPower, bool bVerbose)
 {
 	LOMatrix mulMat;
 
@@ -249,7 +249,14 @@ LOMatrix LOMatrix::CalcMatrixPower(const boost::multiprecision::cpp_int& matrixP
 		if(matrixPower & 1)
 		{
 			mulMat.Mul(*this);
+
+			if(bVerbose)
+			{
+				std::cout << "Calculated matrix power 1..." << std::endl;
+			}
 		}
+
+		boost::multiprecision::cpp_int currMatrixPower = 1;
 
 		//For each "1" bit of matrixPower, multiply the result matrix by the current matrix
 		LOMatrix prevMatrix = *this;
@@ -262,6 +269,12 @@ LOMatrix LOMatrix::CalcMatrixPower(const boost::multiprecision::cpp_int& matrixP
 			if(matrixPower & currMatrixPowerBit)
 			{
 				mulMat.Mul(currMatrix);
+
+				currMatrixPower = currMatrixPower | currMatrixPowerBit;
+				if(bVerbose)
+				{
+					std::cout << "Calculated matrix power " << currMatrixPower << "..." << std::endl;
+				}
 			}
 
 			std::swap(prevMatrix, currMatrix);
@@ -324,7 +337,7 @@ void LOMatrix::LoadSquareClickRule(const std::string& filename, uint32_t gameSiz
 	}
 	else
 	{
-		std::cout << "USING DEFAULT MATRIX" << std::endl;
+		//std::cout << "USING DEFAULT MATRIX" << std::endl;
 		LoadDefault(gameSize);
 	}
 }

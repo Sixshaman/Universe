@@ -13,7 +13,7 @@ LOPictureReader::LOPictureReader(const std::string& filename, uint32_t gamesize,
 	mPixelByteSize = 0;
 
 	mFileHandle = CreateFileA(filename.c_str(), GENERIC_READ, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
-	if(mFileHandle == INVALID_HANDLE_VALUE)
+	if(mFileHandle == INVALID_HANDLE_VALUE && !filename.empty())
 	{
 		std::cout << "File doesn\'t exist!" << std::endl;
 	}

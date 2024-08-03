@@ -355,7 +355,7 @@ std::optional<LaunchOptions> ParseCommandLineArgs(int argc, char* argv[])
 	return result;
 }
 
-bool VerifySolutionPeriod(uint32_t gameSize, const std::string& clickRuleFilename, const boost::multiprecision::cpp_int& solutionPeriod)
+bool VerifySolutionPeriod(uint32_t gameSize, const std::string& clickRuleFilename, const boost::multiprecision::cpp_int& solutionPeriod, bool bVerbose)
 {
 	//Verify solution period
 	if(solutionPeriod == 1)
@@ -373,7 +373,7 @@ bool VerifySolutionPeriod(uint32_t gameSize, const std::string& clickRuleFilenam
 
 		//Test that the (A^p)*((A^p)*b) == (A^p)*b, i.e. this is indeed the solution period
 		{
-			LOMatrix solutionPeriodMatrix = mat.CalcMatrixPower(solutionPeriod);
+			LOMatrix solutionPeriodMatrix = mat.CalcMatrixPower(solutionPeriod, bVerbose);
 			boost::dynamic_bitset<uint64_t> vectorRes = solutionPeriodMatrix.MulBoard(vectorTest);
 			boost::dynamic_bitset<uint64_t> vectorResSquared = solutionPeriodMatrix.MulBoard(vectorRes);
 
@@ -394,7 +394,7 @@ bool VerifySolutionPeriod(uint32_t gameSize, const std::string& clickRuleFilenam
 		}
 
 		{	
-			LOMatrix cyclicPowerMatrix = mat.CalcMatrixPower(cyclicFactor);
+			LOMatrix cyclicPowerMatrix = mat.CalcMatrixPower(cyclicFactor, bVerbose);
 			boost::dynamic_bitset<uint64_t> vectorRes = cyclicPowerMatrix.MulBoard(vectorTest);
 			boost::dynamic_bitset<uint64_t> vectorResSquared = cyclicPowerMatrix.MulBoard(vectorRes);
 
@@ -405,7 +405,7 @@ bool VerifySolutionPeriod(uint32_t gameSize, const std::string& clickRuleFilenam
 
 			if(cyclicFactor != 1)
 			{
-				LOMatrix power2Matrix = mat.CalcMatrixPower(power2Factor);
+				LOMatrix power2Matrix = mat.CalcMatrixPower(power2Factor, bVerbose);
 				vectorRes = power2Matrix.MulBoard(vectorTest);
 				vectorResSquared = power2Matrix.MulBoard(vectorRes);
 
@@ -582,7 +582,7 @@ int main(int argc, char *argv[])
 
 		if(launchOptions.LaunchMode == LaunchMode::CalcClickRuleSolutionPeriodAndVerify)
 		{
-			if(!VerifySolutionPeriod(gameWidth, launchOptions.ClickRuleFilename, solutionPeriod))
+			if(!VerifySolutionPeriod(gameWidth, launchOptions.ClickRuleFilename, solutionPeriod, launchOptions.Verbose))
 			{
 				std::cout << "SOLUTION PERIOD VERIFICATION ERROR!" << std::endl;
 			}
@@ -629,7 +629,7 @@ int main(int argc, char *argv[])
 			}
 		}
 
-		LOMatrix mulMat = mat.CalcMatrixPower(launchOptions.MatrixPower);
+		LOMatrix mulMat = mat.CalcMatrixPower(launchOptions.MatrixPower, launchOptions.Verbose);
 
 		std::string outFilename = launchOptions.OutMatrixFilename;
 		if(outFilename.empty())
