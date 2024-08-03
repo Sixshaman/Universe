@@ -11,7 +11,7 @@
 #define BORDER_WID 1
 #define SPACE_WID  1
 
-LOPictureWriter::LOPictureWriter(const std::wstring& filename, uint32_t gamesize, PictureSaveMode mode): mFileHandle(nullptr), mGameSize(gamesize), mSaveMode(mode)
+LOPictureWriter::LOPictureWriter(const std::string& filename, uint32_t gamesize, PictureSaveMode mode): mFileHandle(nullptr), mGameSize(gamesize), mSaveMode(mode)
 {
 	mImageWidth    = 0;
 	mImageHeight   = 0;
@@ -20,7 +20,7 @@ LOPictureWriter::LOPictureWriter(const std::wstring& filename, uint32_t gamesize
 
 	mImageStrideBytes = 0;
 
-	mFileHandle = CreateFile(filename.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, 0, nullptr);
+	mFileHandle = CreateFileA(filename.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, 0, nullptr);
 }
 
 LOPictureWriter::~LOPictureWriter()

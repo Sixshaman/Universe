@@ -8,7 +8,7 @@
 class LOPictureReader
 {
 public:
-	LOPictureReader(const std::wstring& filename, uint32_t gamesize, PictureLoadMode loadMode);
+	LOPictureReader(const std::string& filename, uint32_t gamesize, PictureLoadMode loadMode);
 	~LOPictureReader();
 
 	void ReadMetadata();

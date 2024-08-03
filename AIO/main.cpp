@@ -1,15 +1,344 @@
 #include <iostream>
 #include "LOMatrix.hpp"
 #include <bit>
+#include <regex>
+#include <optional>
+#include <format>
 
-enum LOMode
+template<> struct std::formatter<boost::multiprecision::cpp_int>: std::formatter<std::string> 
 {
-	LIGHTS_OUT   = 0,
-	TOROID_LOUT  = 1,
-	LIGHTS_TROUT = 2
+	auto format(const boost::multiprecision::cpp_int& val, std::format_context& context) const
+	{
+		return std::formatter<std::string>::format(val.str(), context);
+	}
 };
 
-bool VerifySolutionPeriod(uint32_t gameSize, const boost::multiprecision::cpp_int& solutionPeriod)
+enum class LaunchMode
+{
+	BuildDirectMatrix,
+	BuildInvertedMatrix,
+	CheckSolvability,
+	CalcDefaultClickRuleSolutionPeriod
+};
+
+enum class BoardTopology
+{
+	Square,
+	Torus,
+	Matrix
+};
+
+struct LaunchOptions
+{
+	LaunchMode LaunchMode = LaunchMode::BuildInvertedMatrix;
+
+	SaveMode SaveMode = SaveMode::SaveNoBorders;
+
+	bool Verbose = false;
+
+	boost::multiprecision::cpp_int MatrixPower = 1;
+
+	std::string MatrixFileName;
+	std::string ClickRuleFilename;
+	std::string OutMatrixFilename;
+
+	uint32_t BoardWidth  = 5;
+	uint32_t BoardHeight = 5;
+	uint32_t BoardDepth  = 1;
+
+	BoardTopology Topology = BoardTopology::Square;
+};
+
+std::optional<LaunchOptions> ParseCommandLineArgs(int argc, char* argv[])
+{
+	LaunchOptions result;
+
+	bool buildInverseMatrix        = false;
+	bool buildDirectMatrix         = false;
+	bool checkSolvability          = false;
+	bool calcDefaultSolutionPeriod = false;
+
+	bool saveWithoutBorders   = false;
+	bool saveWithBorders      = false;
+	bool saveWithSmallBorders = false;
+
+	bool overrideTopology = false;
+
+	int currArg = 0;
+	while(currArg < argc)
+	{
+		if(strcmp(argv[currArg], "--power") == 0)
+		{
+			currArg++;
+			
+			if(currArg >= argc)
+			{
+				std::cout << "Please enter matrix power!" << std::endl;
+				return std::nullopt;
+			}
+			else
+			{
+				try
+				{
+					result.MatrixPower = boost::multiprecision::cpp_int(argv[currArg]);
+				}
+				catch(std::runtime_error e)
+				{
+					std::cout << "Please enter valid matrix power!" << std::endl;
+					return std::nullopt;
+				}
+			}
+		}
+
+		else if(strcmp(argv[currArg], "--size") == 0)
+		{
+			currArg++;
+			
+			if(currArg >= argc)
+			{
+				std::cout << "Please enter board size!" << std::endl;
+				return std::nullopt;
+			}
+			else
+			{
+				std::string currStr(argv[currArg]);
+
+				std::regex singleDigitSizeRegex("(\\d+)");
+				std::regex doubleDigitSizeRegex("(\\d+)x(\\d+)");
+				std::regex tripleDigitSizeRegex("(\\d+)x(\\d+)x(\\d+)");
+				
+				std::smatch singleDigitMatch;
+				std::smatch doubleDigitMatch;
+				std::smatch tripleDigitMatch;
+
+				try
+				{
+					if (std::regex_match(currStr, singleDigitMatch, singleDigitSizeRegex))
+					{
+						//The entered size is a single number. Parse as a square board
+						uint32_t size = std::stoul(singleDigitMatch[1].str());
+
+						result.BoardWidth  = size;
+						result.BoardHeight = size;
+					}
+					else if(std::regex_match(currStr, doubleDigitMatch, doubleDigitSizeRegex))
+					{
+						//The entered size is two numbers. Parse as a n x m board
+						result.BoardWidth  = std::stoul(doubleDigitMatch[1].str());
+						result.BoardHeight = std::stoul(doubleDigitMatch[2].str());
+					}
+					else if (std::regex_match(currStr, tripleDigitMatch, tripleDigitSizeRegex))
+					{
+						//The entered size is three numbers. Parse as a n x m x k board
+						result.BoardWidth  = std::stoul(tripleDigitMatch[1].str());
+						result.BoardHeight = std::stoul(tripleDigitMatch[2].str());
+						result.BoardDepth  = std::stoul(tripleDigitMatch[3].str());
+					}
+				}
+				catch(...)
+				{
+					std::cout << "Please enter valid board size!" << std::endl;
+					return std::nullopt;
+				}
+			}
+		}
+
+		else if(strcmp(argv[currArg], "--click_rule") == 0)
+		{
+			currArg++;
+
+			if(currArg >= argc)
+			{
+				std::cout << "Please enter click rule filename!" << std::endl;
+				return std::nullopt;
+			}
+			else
+			{
+				result.ClickRuleFilename = argv[currArg];
+			}
+		}
+
+		else if(strcmp(argv[currArg], "--matrix") == 0)
+		{
+			currArg++;
+
+			if(currArg >= argc)
+			{
+				std::cout << "Please enter matrix filename!" << std::endl;
+				return std::nullopt;
+			}
+			else
+			{
+				result.MatrixFileName = argv[currArg];
+			}
+		}
+
+		else if(strcmp(argv[currArg], "--out") == 0)
+		{
+			currArg++;
+
+			if(currArg >= argc)
+			{
+				std::cout << "Please enter output filename!" << std::endl;
+				return std::nullopt;
+			}
+			else
+			{
+				result.OutMatrixFilename = argv[currArg];
+			}
+		}
+
+		else if(strcmp(argv[currArg], "--topology") == 0)
+		{
+			currArg++;
+
+			if(currArg >= argc)
+			{
+				std::cout << "Please enter topology!" << std::endl;
+				return std::nullopt;
+			}
+			else if(strcmp(argv[currArg], "square") == 0)
+			{
+				result.Topology = BoardTopology::Square;
+			}
+			else if(strcmp(argv[currArg], "torus") == 0)
+			{
+				result.Topology = BoardTopology::Torus;
+			}
+			else
+			{
+				std::cout << "Unknown topology: " << argv[currArg] << std::endl;
+				return std::nullopt;
+			}
+
+			overrideTopology = true;
+		}
+
+		else if(strcmp(argv[currArg], "--inverse") == 0)
+		{
+			buildInverseMatrix = true;
+		}
+
+		else if(strcmp(argv[currArg], "--direct") == 0)
+		{
+			buildDirectMatrix = true;
+		}
+
+		else if(strcmp(argv[currArg], "--check_solvability") == 0)
+		{
+			checkSolvability = true;
+		}
+
+		else if(strcmp(argv[currArg], "--calc_default_solution_period") == 0)
+		{
+			calcDefaultSolutionPeriod = true;
+		}
+
+		else if(strcmp(argv[currArg], "--borders") == 0 || strcmp(argv[currArg], "--default_borders") == 0 || strcmp(argv[currArg], "--with_borders") == 0)
+		{
+			saveWithBorders = true;
+		}
+
+		if(strcmp(argv[currArg], "--no_borders") == 0)
+		{
+			saveWithoutBorders = true;
+		}
+
+		if(strcmp(argv[currArg], "--small_borders") == 0)
+		{
+			saveWithSmallBorders = true;
+		}
+
+		if(strcmp(argv[currArg], "--verbose") == 0)
+		{
+			result.Verbose = true;
+		}
+
+		currArg++;
+	}
+
+	if(!result.MatrixFileName.empty() && !result.ClickRuleFilename.empty())
+	{
+		std::cout << "Error: click rule and matrix options are mutually exclusive." << std::endl;
+		return std::nullopt;
+	}
+
+	if(checkSolvability && (calcDefaultSolutionPeriod || buildInverseMatrix || buildDirectMatrix))
+	{
+		std::cout << "Error: checking solvability is mutually exclusive with other options." << std::endl;
+		return std::nullopt;
+	}
+
+	if(calcDefaultSolutionPeriod && (checkSolvability || buildInverseMatrix || buildDirectMatrix))
+	{
+		std::cout << "Error: calculating solution period is mutually exclusive with other options." << std::endl;
+		return std::nullopt;
+	}
+
+	if(buildInverseMatrix && buildDirectMatrix)
+	{
+		std::cout << "Error: direct and inverse matrix options are mutually exclusive." << std::endl;
+		return std::nullopt;
+	}
+
+	if((int)saveWithBorders + (int)saveWithoutBorders + (int)saveWithSmallBorders > 1)
+	{
+		std::cout << "Error: different border settings are mutually exclusive." << std::endl;
+		return std::nullopt;
+	}
+
+	if(overrideTopology && !result.MatrixFileName.empty())
+	{
+		std::cout << "Error: matrix option is incompatible with square and torus topologies." << std::endl;
+		return std::nullopt;
+	}
+
+	if(checkSolvability)
+	{
+		result.LaunchMode = LaunchMode::CheckSolvability;
+	}
+	else if(calcDefaultSolutionPeriod)
+	{
+		result.LaunchMode = LaunchMode::CalcDefaultClickRuleSolutionPeriod;
+	}
+	else if(buildInverseMatrix)
+	{
+		result.LaunchMode = LaunchMode::BuildInvertedMatrix;
+	}
+	else if(buildDirectMatrix)
+	{
+		result.LaunchMode = LaunchMode::BuildDirectMatrix;
+	}
+
+	if(saveWithBorders)
+	{
+		result.SaveMode = SaveMode::SaveWithBorders;
+	}
+	else if(saveWithoutBorders)
+	{
+		result.SaveMode = SaveMode::SaveNoBorders;
+	}
+	else if(saveWithSmallBorders)
+	{
+		result.SaveMode = SaveMode::SaveWithSmallBorders;
+	}
+
+	if(!result.MatrixFileName.empty())
+	{
+		result.Topology = BoardTopology::Matrix;
+	}
+
+	if(result.OutMatrixFilename.empty())
+	{
+		result.OutMatrixFilename = std::format("LightsOut{}x{}-{}-Power-{}-{}.bmp", result.BoardWidth, result.BoardHeight,
+				                                                                    result.LaunchMode == LaunchMode::BuildDirectMatrix ? "Direct" : "Inverse", 
+				                                                                    result.MatrixPower, result.Topology == BoardTopology::Torus ? "Torus" : "Square");
+	}
+
+	return result;
+}
+
+bool VerifySolutionPeriod(uint32_t gameSize, const std::string& clickRuleFilename, const boost::multiprecision::cpp_int& solutionPeriod)
 {
 	//Verify solution period
 	if(solutionPeriod == 1)
@@ -21,7 +350,7 @@ bool VerifySolutionPeriod(uint32_t gameSize, const boost::multiprecision::cpp_in
 		LOMatrix mat;
 		assert(solutionPeriod % 2 == 0);
 		auto solutionPeriodHalf = solutionPeriod / 2;
-		mat.Load(L"Maa.bmp", gameSize);
+		mat.LoadSquareClickRule(clickRuleFilename, gameSize); //TODO: only default click rule is supported!!!
 
 		//Fast multiplication at the expense of space
 		std::vector<LOMatrix> solutionPeriodMatricesPerBit;
@@ -74,6 +403,85 @@ bool VerifySolutionPeriod(uint32_t gameSize, const boost::multiprecision::cpp_in
 	}
 }
 
+void PrintOptions(const LaunchOptions& launchOptions)
+{
+	std::cout << "Launch mode: ";
+	switch(launchOptions.LaunchMode)
+	{
+	case LaunchMode::BuildDirectMatrix:
+		std::cout << "save direct matrix" << std::endl;
+		break;
+
+	case LaunchMode::BuildInvertedMatrix:
+		std::cout << "save inverse matrix" << std::endl;
+		break;
+
+	case LaunchMode::CheckSolvability:
+		std::cout << "check solvability" << std::endl;
+		break;
+
+	case LaunchMode::CalcDefaultClickRuleSolutionPeriod:
+		std::cout << "calculate solution period for default Lights Out" << std::endl;
+		break;
+
+	default:
+		break;
+	}
+
+	//TODO: non-square and 3D boards
+	std::cout << std::format("Board size: {}x{}", launchOptions.BoardWidth, launchOptions.BoardWidth) << std::endl;
+
+	std::cout << "Board topology: ";
+	switch(launchOptions.Topology)
+	{
+	case BoardTopology::Square:
+		std::cout << "square" << std::endl;
+		std::cout << "Click rule filename: " << launchOptions.ClickRuleFilename << std::endl;
+		break;
+
+	case BoardTopology::Torus:
+		std::cout << "torus" << std::endl;
+		std::cout << "Click rule filename: " << launchOptions.ClickRuleFilename << std::endl;
+		break;
+
+	case BoardTopology::Matrix:
+		std::cout << "matrix-given" << std::endl;
+		std::cout << "Matrix filename: " << launchOptions.MatrixFileName << std::endl;
+		break;
+
+	default:
+		break;
+	}
+
+	if(launchOptions.LaunchMode != LaunchMode::BuildDirectMatrix && launchOptions.LaunchMode != LaunchMode::BuildInvertedMatrix)
+	{
+		return;
+	}
+
+	std::cout << "Matrix power: " << launchOptions.MatrixPower << std::endl;
+
+	std::cout << "Borders mode: ";
+	switch(launchOptions.SaveMode)
+	{
+	case SaveMode::SaveNoBorders:
+		std::cout << "none" << std::endl;
+		break;
+
+	case SaveMode::SaveWithBorders:
+		std::cout << "with borders" << std::endl;
+		break;
+
+	case SaveMode::SaveWithSmallBorders:
+		std::cout << "with small borders" << std::endl;
+		break;
+			
+	default:
+		break;
+	}
+
+	std::cout << "Out filename: " << launchOptions.OutMatrixFilename << std::endl;
+}
+
 //FOR N = 999, THE PREDICTED SOLUTION PERIOD IS COMPARATIVELY SMALL!
 //JUST 18 QUADRILLION!!!
 //FOR N = 100, FOR EXAMPLE, IT'S 2 QUADRILLION, JUST 4 TIMES SMALLER!
@@ -84,172 +492,169 @@ bool VerifySolutionPeriod(uint32_t gameSize, const boost::multiprecision::cpp_in
 //If you divide this by 2, YOU'LL GET QUENEAU NUMBERS: https://oeis.org/A054639 
 int main(int argc, char *argv[])
 {
-	int size_matrix  =  0;
-	int power_matrix =  1;
-	int mode         = -1;
-
-	std::cout << "Enter size. Enter -1 to check for normal solvability and -2 to check for toroidal solvability, and -3 to check SOLUTION PERIODS" << std::endl;
-	std::cin >> size_matrix;
-
-	if(size_matrix < 0)
+	auto launchOptionsOpt = ParseCommandLineArgs(argc, argv);
+	if(!launchOptionsOpt.has_value())
 	{
-		if (size_matrix == -1)
-		{
-			for (int i = 1; i <= 250; i++)
-			{
-				LOMatrix mat;
-				mat.Load(L"Maa.bmp", i);
-				uint32_t qPattSize = mat.CheckInv();
+		return 1;
+	}
 
-				if(qPattSize == 0)
-				{
-					std::cout << i << " IS SOLVABLE" << std::endl;
-				}
-				else
-				{
-					std::cout << i << " IS UNSOLVABLE(" << qPattSize << ")" << std::endl;
-				}
-			}
+	auto launchOptions = launchOptionsOpt.value();
+	if(launchOptions.Verbose)
+	{
+		PrintOptions(launchOptions);
+	}
+
+	if(launchOptions.LaunchMode == LaunchMode::CheckSolvability)
+	{
+		LOMatrix mat;
+		std::string resultMessage;
+
+		uint32_t boardSize = launchOptions.BoardWidth;
+		resultMessage += std::format("Lights out game {}x{}", boardSize, boardSize);
+
+		switch (launchOptions.Topology)
+		{
+		case BoardTopology::Square:
+		{
+			mat.LoadSquareClickRule(launchOptions.ClickRuleFilename, boardSize);
+			resultMessage += " on square board";
+			break;
 		}
-		else if (size_matrix == -2)
-		{
-			for (int i = 1; i <= 250; i++)
-			{
-				LOMatrix mat;
-				mat.LoadToroid(L"Maa.bmp", i);
-				uint32_t qPattSize = mat.CheckInv();
 
-				if(qPattSize == 0)
-				{
-					std::cout << i << " IS SOLVABLE" << std::endl;
-				}
-				else
-				{
-					std::cout << i << " IS UNSOLVABLE(" << qPattSize << ")" << std::endl;
-				}
-			}
+		case BoardTopology::Torus:
+		{
+			mat.LoadToroidClickRule(launchOptions.ClickRuleFilename, boardSize);
+			resultMessage += " on toroid board";
+			break;
 		}
-		else if(size_matrix == -3)
-		{
-			for (int i = 1; i <= 256; i++)
-			{
-				LOMatrix mat;
-				auto solutionPeriod = mat.FindSolutionPeriod(i);
-				std::cout << "SOLUTION PERIOD FOR " << i << "x" << i << ": " << mat.FindSolutionPeriod(i) << std::endl;
 
-				//if(!VerifySolutionPeriod(i, solutionPeriod))
-				//{
-				//	std::cout << "SOLUTION PERIOD VALIDATION ERROR" << std::endl;
-				//}
-			}
+		case BoardTopology::Matrix:
+		{
+			mat.LoadMatrix(launchOptions.MatrixFileName);
+			resultMessage += " on matrix-given board";
+			break;
+		}
+
+		default:
+			break;
+		}
+
+		uint32_t quietPatterns = mat.CheckInv();
+		if(quietPatterns == 0)
+		{
+			resultMessage += " is solvable";
 		}
 		else
 		{
-			std::cout << "Unknown mode!" << std::endl;
+			resultMessage += std::format(" is unsolvable ({} quiet patterns)", quietPatterns);
 		}
+
+		std::cout << resultMessage << std::endl;
+	}
+	else if(launchOptions.LaunchMode == LaunchMode::CalcDefaultClickRuleSolutionPeriod)
+	{
+		uint32_t gameWidth = launchOptions.BoardWidth;
+
+		LOMatrix mat;
+		auto solutionPeriod = mat.FindSolutionPeriod(gameWidth);
+		std::cout << std::format("SOLUTION PERIOD for default {}x{} Lights Out: {}", gameWidth, gameWidth, mat.FindSolutionPeriod(gameWidth)) << std::endl;
 	}
 	else
 	{
-		std::cout << "Enter matrix power" << std::endl;
-		std::cin >> power_matrix;
+		LOMatrix mat;
 
-		std::cout << "Enter mode."                                                          << "\n"
-			      << "LO - Normal Lights Out, TO - Toroidal Lights Out, LT - Lights Trout." << "\n"
-			      << "I - Inverse, A - Direct."                                             << "\n"
-			      << "VE - With Borders, EL - Borderless."                                  << "\n"
-			      << "0,   1,   2,   3 - LOIVE, LOIEL, LOAVE, LOAEL respectively."          << "\n"
-			      << "4,   5,   6,   7 - TOIVE, TOIEL, TOAVE, TOAEL respectively."          << "\n"
-			      << "8,   9,  10,  11 - LTIVE, LTIEL, LTAVE, LTAEL respectively."          << std::endl;
-
-		std::cin >> mode;
-
-		if (mode < 0 || mode > 11)
+		switch (launchOptions.Topology)
 		{
-			std::cout << "Unknown mode!" << std::endl;
+		case BoardTopology::Square:
+			mat.LoadSquareClickRule(launchOptions.ClickRuleFilename, launchOptions.BoardWidth);
+			break;
+
+		case BoardTopology::Torus:
+			mat.LoadToroidClickRule(launchOptions.ClickRuleFilename, launchOptions.BoardWidth);
+			break;
+
+		case BoardTopology::Matrix:
+			mat.LoadMatrix(launchOptions.MatrixFileName);
+			break;
+
+		default:
+			break;
+		}
+
+		if(launchOptions.Verbose)
+		{
+			std::cout << "Generated succesfully..." << std::endl;
+		}
+
+		std::wstring filename;
+		if(launchOptions.LaunchMode == LaunchMode::BuildInvertedMatrix)
+		{
+			mat = mat.Inverto();	
+			if(launchOptions.Verbose)
+			{
+				std::cout << "Diagonalized succesfully..." << std::endl;
+			}
+		}
+
+		LOMatrix mulMat;
+		if(launchOptions.MatrixPower == 1)
+		{
+			mulMat = mat;
 		}
 		else
 		{
-			LOMatrix mat;
+			uint32_t totalMatrixPower = 0;
+			mulMat.SetIdentity(launchOptions.BoardWidth);
 
-			LOMode loMode = (LOMode)(mode / 4);
-			bool   useA   = ((mode % 4) >> 1) & 0x01;
-			bool   useEL  = ((mode % 4) >> 0) & 0x01;
+			//Store 5 matrices at most; at 256x256 board size, the matrix requires 4GB of memory
+			uint32_t remainder = launchOptions.MatrixPower.convert_to<uint32_t>();
+			while(remainder != 0)
+			{
+				uint32_t currPowerRequired = std::bit_floor(remainder);
+				uint32_t currMatrixPower = 1;
 
-			if(loMode == LIGHTS_OUT)
-			{
-				mat.Load(L"Maa.bmp", size_matrix);
-			}
-			else if(loMode == TOROID_LOUT)
-			{
-				mat.LoadToroid(L"Maa.bmp", size_matrix);
-			}
-			else if(loMode == LIGHTS_TROUT)
-			{
-				mat.LoadBig(L"Ma.bmp");
-			}
-
-			std::cout << "Generated succesfully..." << std::endl;
-
-			std::wstring filename;
-
-			if(!useA)
-			{
-				mat = mat.Inverto();
-				filename = L"Am.bmp";
-				std::cout << "Diagonalized succesfully..." << std::endl;
-			}
-			else
-			{
-				filename = L"Ma.bmp";
-			}
-
-			LOMatrix mulMat;
-			if(power_matrix == 1)
-			{
-				mulMat = mat;
-			}
-			else
-			{
-				uint32_t totalMatrixPower = 0;
-				mulMat.SetIdentity(size_matrix);
-
-				//Store 5 matrices at most; at 256x256 board size, the matrix requires 4GB of memory
-				uint32_t remainder = power_matrix;
-				while(remainder != 0)
+				LOMatrix currMatrix = mat;
+				while(currMatrixPower < currPowerRequired)
 				{
-					uint32_t currPowerRequired = std::bit_floor(remainder);
-					uint32_t currMatrixPower = 1;
+					currMatrix.Mul(currMatrix);
+					currMatrixPower *= 2;
 
-					LOMatrix currMatrix = mat;
-					while(currMatrixPower < currPowerRequired)
+					if(launchOptions.Verbose)
 					{
-						currMatrix.Mul(currMatrix);
-						currMatrixPower *= 2;
-
-						std::cout << "Calculated power of " << currMatrixPower << std::endl;
+						std::cout << "Calculated matrix power of " << currMatrixPower << std::endl;
 					}
+				}
 
-					mulMat.Mul(currMatrix);
-					remainder -= currMatrixPower;
-					totalMatrixPower += currMatrixPower;
+				mulMat.Mul(currMatrix);
+				remainder -= currMatrixPower;
+				totalMatrixPower += currMatrixPower;
 
-					std::cout << "Calculated power of " << totalMatrixPower << std::endl;
+				if(launchOptions.Verbose)
+				{
+					std::cout << "Calculated matrix power of " << totalMatrixPower << std::endl;
 				}
 			}
-
-			if(!useEL)
-			{
-				mulMat.Save(filename);
-			}
-			else
-			{
-				mulMat.SaveBorderless(filename);
-			}
-
-			std::cout << "Saved succesfully! Completed." << std::endl;
 		}
+
+		std::string outFilename = launchOptions.OutMatrixFilename;
+		if(outFilename.empty())
+		{
+			outFilename = std::format("LightsOut{}x{}-{}-Power-{}-{}.bmp", launchOptions.BoardWidth, launchOptions.BoardHeight, 
+				                                                           launchOptions.LaunchMode == LaunchMode::BuildDirectMatrix ? "Direct" : "Inverse", 
+				                                                           launchOptions.MatrixPower, launchOptions.Topology == BoardTopology::Torus ? "Torus" : "Square");
+		}
+
+		if(launchOptions.SaveMode == SaveMode::SaveWithBorders)
+		{
+			mulMat.SaveMatrix(outFilename);
+		}
+		else if(launchOptions.SaveMode == SaveMode::SaveNoBorders)
+		{
+			mulMat.SaveMatrixBorderless(outFilename);
+		}
+
+		std::cout << "Saved succesfully! Completed." << std::endl;
 	}
 
-	system("pause");
 	return 0;
 }

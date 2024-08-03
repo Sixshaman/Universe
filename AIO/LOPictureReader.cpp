@@ -1,7 +1,7 @@
 #include "LOPictureReader.hpp"
 #include <iostream>
 
-LOPictureReader::LOPictureReader(const std::wstring& filename, uint32_t gamesize, PictureLoadMode loadMode): mFileHandle(nullptr), mGameSize(gamesize), mLoadMode(loadMode)
+LOPictureReader::LOPictureReader(const std::string& filename, uint32_t gamesize, PictureLoadMode loadMode): mFileHandle(nullptr), mGameSize(gamesize), mLoadMode(loadMode)
 {
 	mImageWidth    = 0;
 	mImageHeight   = 0;
@@ -12,7 +12,7 @@ LOPictureReader::LOPictureReader(const std::wstring& filename, uint32_t gamesize
 
 	mPixelByteSize = 0;
 
-	mFileHandle = CreateFile(filename.c_str(), GENERIC_READ, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+	mFileHandle = CreateFileA(filename.c_str(), GENERIC_READ, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
 	if(mFileHandle == INVALID_HANDLE_VALUE)
 	{
 		std::cout << "File doesn\'t exist!" << std::endl;

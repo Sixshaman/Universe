@@ -233,7 +233,7 @@ boost::dynamic_bitset<uint64_t> LOMatrix::MulBoard(boost::dynamic_bitset<uint64_
 	return result;
 }
 
-void LOMatrix::Load(const std::wstring& filename, uint32_t gameSize)
+void LOMatrix::LoadSquareClickRule(const std::string& filename, uint32_t gameSize)
 {
 	mSize = gameSize;
 	mQuietPatternBase = mSize * mSize;
@@ -290,7 +290,7 @@ void LOMatrix::Load(const std::wstring& filename, uint32_t gameSize)
 	}
 }
 
-void LOMatrix::LoadToroid(const std::wstring & filename, uint32_t gameSize)
+void LOMatrix::LoadToroidClickRule(const std::string& filename, uint32_t gameSize)
 {
 	mSize = gameSize;
 	mQuietPatternBase = mSize * mSize;
@@ -347,7 +347,7 @@ void LOMatrix::LoadToroid(const std::wstring & filename, uint32_t gameSize)
 	}
 }
 
-void LOMatrix::LoadBig(const std::wstring& filename)
+void LOMatrix::LoadMatrix(const std::string& filename)
 {
 	LOPictureReader reader(filename, 0, PictureLoadMode::BORDERLESS);
 	reader.ReadMetadata();
@@ -404,12 +404,12 @@ void LOMatrix::LoadBig(const std::wstring& filename)
 	}
 }
 
-void LOMatrix::Save(const std::wstring& filename)
+void LOMatrix::SaveMatrix(const std::string& filename)
 {
 	SaveMatrix(filename, PictureSaveMode::BORDERFUL);
 }
 
-void LOMatrix::SaveBorderless(const std::wstring& filename)
+void LOMatrix::SaveMatrixBorderless(const std::string& filename)
 {
 	SaveMatrix(filename, PictureSaveMode::BORDERLESS);
 }
@@ -490,7 +490,7 @@ void LOMatrix::LoadDefaultTor(uint32_t size)
 	}
 }
 
-void LOMatrix::SaveMatrix(const std::wstring & filename, PictureSaveMode saveMode)
+void LOMatrix::SaveMatrix(const std::string & filename, PictureSaveMode saveMode)
 {
 	std::vector<boost::dynamic_bitset<uint64_t>> matrixTrouted;
 	matrixTrouted.resize(mRows.size());
