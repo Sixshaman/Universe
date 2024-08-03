@@ -349,57 +349,54 @@ bool VerifySolutionPeriod(uint32_t gameSize, const std::string& clickRuleFilenam
 	{
 		LOMatrix mat;
 		assert(solutionPeriod % 2 == 0);
-		auto solutionPeriodHalf = solutionPeriod / 2;
 		mat.LoadSquareClickRule(clickRuleFilename, gameSize); //TODO: only default click rule is supported!!!
-
-		//Fast multiplication at the expense of space
-		std::vector<LOMatrix> solutionPeriodMatricesPerBit;
-		if(solutionPeriodHalf & 1)
-		{
-			solutionPeriodMatricesPerBit.push_back(mat);
-		}
-
-		LOMatrix prevMatrix = mat;
-		boost::multiprecision::cpp_int solutionPeriodMatrixBit = 2; //Power 1 is already checked
-		while(solutionPeriodMatrixBit <= solutionPeriodHalf)
-		{
-			//Calculate next power of 2 matrix
-			LOMatrix currMatrix = prevMatrix;
-			currMatrix.Mul(prevMatrix);
-
-			if(solutionPeriodHalf & solutionPeriodMatrixBit)
-			{
-				solutionPeriodMatricesPerBit.push_back(currMatrix);
-			}
-
-			prevMatrix = currMatrix;
-			solutionPeriodMatrixBit = (solutionPeriodMatrixBit << 1);
-		}
-
-		LOMatrix finalMatrixSqrt;
-		finalMatrixSqrt.SetIdentity(gameSize);
-		for(const LOMatrix& matrix: solutionPeriodMatricesPerBit)
-		{
-			finalMatrixSqrt.Mul(matrix);
-		}
-
-		solutionPeriodMatricesPerBit.clear();
 
 		boost::dynamic_bitset<uint64_t> vectorTest(gameSize * gameSize, 0);
 		vectorTest.set(0, true);
 
-		//Test A*b = A*A*b (correct solution period check both for solvable and unsolvable board sizes)
-		//Test Sqrt(A)*b != A*B (to verify this is indeed the minimal solution period)
-		LOMatrix finalMatrix = finalMatrixSqrt;
-		finalMatrix.Mul(finalMatrixSqrt);
+		//Test that the (A^p)*((A^p)*b) == (A^p)*b, i.e. this is indeed the solution period
+		{
+			LOMatrix solutionPeriodMatrix = mat.CalcMatrixPower(solutionPeriod);
+			boost::dynamic_bitset<uint64_t> vectorRes = solutionPeriodMatrix.MulBoard(vectorTest);
+			boost::dynamic_bitset<uint64_t> vectorResSquared = solutionPeriodMatrix.MulBoard(vectorRes);
 
-		LOMatrix finalMatrixSquared = finalMatrix;
-		finalMatrixSquared.Mul(finalMatrix);
+			if(vectorRes != vectorResSquared)
+			{
+				return false;
+			}
+		}
 
-		boost::dynamic_bitset<uint64_t> vectorResSqrt = finalMatrixSqrt.MulBoard(vectorTest);
-		boost::dynamic_bitset<uint64_t> vectorRes = finalMatrix.MulBoard(vectorTest);
-		boost::dynamic_bitset<uint64_t> vectorResSquared = finalMatrixSquared.MulBoard(vectorTest);
-		return (vectorResSqrt != vectorRes) && (vectorRes == vectorResSquared);
+		//Test that this is indeed the smallest solution period, i.e. there is no smaller value of p' < p
+		//such that (A^p')*((A^p')*b) = (A^p')*b, at least divided by 2
+		boost::multiprecision::cpp_int power2Factor = 1;
+		boost::multiprecision::cpp_int cyclicFactor = solutionPeriod;
+		while(cyclicFactor % 2 == 0)
+		{
+			cyclicFactor = cyclicFactor / 2;
+			power2Factor = power2Factor * 2;
+		}
+
+		{	
+			LOMatrix cyclicPowerMatrix = mat.CalcMatrixPower(cyclicFactor);
+			boost::dynamic_bitset<uint64_t> vectorRes = cyclicPowerMatrix.MulBoard(vectorTest);
+			boost::dynamic_bitset<uint64_t> vectorResSquared = cyclicPowerMatrix.MulBoard(vectorRes);
+
+			if(vectorRes == vectorResSquared)
+			{
+				return false;
+			}
+
+			LOMatrix power2Matrix = mat.CalcMatrixPower(power2Factor);
+			vectorRes = power2Matrix.MulBoard(vectorTest);
+			vectorResSquared = power2Matrix.MulBoard(vectorRes);
+
+			if(vectorRes == vectorResSquared)
+			{
+				return false;
+			}
+		}
+
+		return true;
 	}
 }
 
@@ -557,7 +554,12 @@ int main(int argc, char *argv[])
 
 		LOMatrix mat;
 		auto solutionPeriod = mat.FindSolutionPeriod(gameWidth);
-		std::cout << std::format("SOLUTION PERIOD for default {}x{} Lights Out: {}", gameWidth, gameWidth, mat.FindSolutionPeriod(gameWidth)) << std::endl;
+		std::cout << std::format("SOLUTION PERIOD for default {}x{} Lights Out: {}", gameWidth, gameWidth, solutionPeriod) << std::endl;
+
+		if(!VerifySolutionPeriod(gameWidth, launchOptions.ClickRuleFilename, solutionPeriod))
+		{
+			std::cout << "SOLUTION PERIOD VERIFICATION ERROR!" << std::endl;
+		}
 	}
 	else
 	{
@@ -596,45 +598,7 @@ int main(int argc, char *argv[])
 			}
 		}
 
-		LOMatrix mulMat;
-		if(launchOptions.MatrixPower == 1)
-		{
-			mulMat = mat;
-		}
-		else
-		{
-			uint32_t totalMatrixPower = 0;
-			mulMat.SetIdentity(launchOptions.BoardWidth);
-
-			//Store 5 matrices at most; at 256x256 board size, the matrix requires 4GB of memory
-			uint32_t remainder = launchOptions.MatrixPower.convert_to<uint32_t>();
-			while(remainder != 0)
-			{
-				uint32_t currPowerRequired = std::bit_floor(remainder);
-				uint32_t currMatrixPower = 1;
-
-				LOMatrix currMatrix = mat;
-				while(currMatrixPower < currPowerRequired)
-				{
-					currMatrix.Mul(currMatrix);
-					currMatrixPower *= 2;
-
-					if(launchOptions.Verbose)
-					{
-						std::cout << "Calculated matrix power of " << currMatrixPower << std::endl;
-					}
-				}
-
-				mulMat.Mul(currMatrix);
-				remainder -= currMatrixPower;
-				totalMatrixPower += currMatrixPower;
-
-				if(launchOptions.Verbose)
-				{
-					std::cout << "Calculated matrix power of " << totalMatrixPower << std::endl;
-				}
-			}
-		}
+		LOMatrix mulMat = mat.CalcMatrixPower(launchOptions.MatrixPower);
 
 		std::string outFilename = launchOptions.OutMatrixFilename;
 		if(outFilename.empty())

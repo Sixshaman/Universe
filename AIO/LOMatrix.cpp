@@ -157,9 +157,9 @@ uint32_t LOMatrix::CheckInv()
 	return mQuietPatternBase;
 }
 
-void LOMatrix::SetIdentity(uint32_t size)
+void LOMatrix::SetIdentity(uint32_t gameSize)
 {
-	mSize = size;
+	mSize = gameSize;
 
 	mRows.resize(mSize * mSize);
 	for(uint32_t i = 0; i < mSize * mSize; i++)
@@ -231,6 +231,45 @@ boost::dynamic_bitset<uint64_t> LOMatrix::MulBoard(boost::dynamic_bitset<uint64_
 	}
 
 	return result;
+}
+
+LOMatrix LOMatrix::CalcMatrixPower(const boost::multiprecision::cpp_int& matrixPower)
+{
+	LOMatrix mulMat;
+
+	if(matrixPower == 1)
+	{
+		mulMat = *this;
+	}
+	else
+	{
+		boost::multiprecision::cpp_int totalMatrixPower = 0;
+		mulMat.SetIdentity(mSize);
+
+		if(matrixPower & 1)
+		{
+			mulMat.Mul(*this);
+		}
+
+		//For each "1" bit of matrixPower, multiply the result matrix by the current matrix
+		LOMatrix prevMatrix = *this;
+		boost::multiprecision::cpp_int currMatrixPowerBit = 2; //Power 1 is already checked
+		while(currMatrixPowerBit <= matrixPower)
+		{
+			LOMatrix currMatrix = prevMatrix;
+			currMatrix.Mul(prevMatrix);
+
+			if(matrixPower & currMatrixPowerBit)
+			{
+				mulMat.Mul(currMatrix);
+			}
+
+			std::swap(prevMatrix, currMatrix);
+			currMatrixPowerBit = (currMatrixPowerBit << 1);
+		}
+	}
+
+	return mulMat;
 }
 
 void LOMatrix::LoadSquareClickRule(const std::string& filename, uint32_t gameSize)
