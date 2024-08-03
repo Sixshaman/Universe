@@ -99,7 +99,8 @@ LOMatrix LOMatrix::InvertMatrix()
 			}
 		}
 
-		for(uint32_t j = i + 1; j < matrixSize; j++)
+	#pragma omp parallel for
+		for(int j = i + 1; j < (int)matrixSize; j++)
 		{
 			if(mRows[j][i])
 			{
@@ -111,7 +112,8 @@ LOMatrix LOMatrix::InvertMatrix()
 
 	for(uint32_t i = matrixSize - 1; i < matrixSize; i--)
 	{
-		for(uint32_t j = i - 1; j < matrixSize; j--)
+	#pragma omp parallel for
+		for(int j = i - 1; j >= 0; j--)
 		{
 			if(mRows[j][i])
 			{
