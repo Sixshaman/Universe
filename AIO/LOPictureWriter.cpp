@@ -11,7 +11,7 @@
 #define BORDER_WID 1
 #define SPACE_WID  1
 
-LOPictureWriter::LOPictureWriter(const std::string& filename, uint32_t gamesize, PictureSaveMode mode): mFileHandle(nullptr), mGameSize(gamesize), mSaveMode(mode)
+LOPictureWriter::LOPictureWriter(const std::string& filename, uint32_t boardWidth, uint32_t boardHeight, PictureSaveMode mode): mFileHandle(nullptr), mBoardWidth(boardWidth), mBoardHeight(boardHeight), mSaveMode(mode)
 {
 	mImageWidth    = 0;
 	mImageHeight   = 0;
@@ -30,36 +30,36 @@ LOPictureWriter::~LOPictureWriter()
 
 void LOPictureWriter::WriteMetadata()
 {
-	int widSm = 0;
-	int heiSm = 0;
-	int wid   = 0;
-	int hei   = 0;
+	int widthSm  = 0;
+	int heightSm = 0;
+	int width    = 0;
+	int height   = 0;
 
 	switch (mSaveMode)
 	{
 	case PictureSaveMode::BORDERFUL:
-		widSm = (CELL_WID * mGameSize + BORDER_WID * (mGameSize + 1));
-		heiSm = (CELL_WID * mGameSize + BORDER_WID * (mGameSize + 1));
-		wid   = widSm * mGameSize + SPACE_WID * (mGameSize + 1);
-		hei   = heiSm * mGameSize + SPACE_WID * (mGameSize + 1);
+		widthSm  = (CELL_WID * mBoardWidth + BORDER_WID * (mBoardWidth + 1));
+		heightSm = (CELL_WID * mBoardHeight + BORDER_WID * (mBoardHeight + 1));
+		width    = widthSm * mBoardWidth + SPACE_WID * (mBoardWidth + 1);
+		height   = heightSm * mBoardHeight + SPACE_WID * (mBoardHeight + 1);
 		break;
 	case PictureSaveMode::BORDERFUL_WHITE:
-		widSm = CELL_WID * mGameSize;
-		heiSm = CELL_WID * mGameSize;
-		wid   = widSm * mGameSize + SPACE_WID * (mGameSize + 1);
-		hei   = heiSm * mGameSize + SPACE_WID * (mGameSize + 1);
+		widthSm = CELL_WID * mBoardWidth;
+		heightSm = CELL_WID * mBoardHeight;
+		width = widthSm * mBoardWidth + SPACE_WID * (mBoardWidth + 1);
+		height = heightSm * mBoardHeight + SPACE_WID * (mBoardHeight + 1);
 		break;
 	case PictureSaveMode::BORDERLESS:
-		widSm = mGameSize;
-		heiSm = mGameSize;
-		wid   = widSm * mGameSize;
-		hei   = heiSm * mGameSize;
+		widthSm = mBoardWidth;
+		heightSm = mBoardHeight;
+		width = widthSm * mBoardWidth;
+		height = heightSm * mBoardHeight;
 		break;
 	case PictureSaveMode::BORDERLESS_BIG:
-		widSm = CELL_WID * mGameSize;
-		heiSm = CELL_WID * mGameSize;
-		wid   = widSm * mGameSize;
-		hei   = wid;
+		widthSm = CELL_WID * mBoardWidth;
+		heightSm = CELL_WID * mBoardHeight;
+		width = widthSm * mBoardWidth;
+		height = heightSm * mBoardHeight;
 		break;
 	default:
 		break;
@@ -68,7 +68,7 @@ void LOPictureWriter::WriteMetadata()
 	BITMAPFILEHEADER bmpFileHeader;
 	bmpFileHeader.bfType = 0x4D42;
 	bmpFileHeader.bfOffBits = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER) + 1024;
-	bmpFileHeader.bfSize = bmpFileHeader.bfOffBits + sizeof(UINT) * wid * hei + hei * (sizeof(UINT)* wid) % 4;
+	bmpFileHeader.bfSize = bmpFileHeader.bfOffBits + sizeof(UINT) * width * height + height * (sizeof(UINT) * width) % 4;
 	bmpFileHeader.bfReserved1 = 0;
 	bmpFileHeader.bfReserved2 = 0;
 
@@ -78,14 +78,14 @@ void LOPictureWriter::WriteMetadata()
 	bmpInfoHeader.biBitCount = 32;
 	bmpInfoHeader.biClrUsed = 0;
 	bmpInfoHeader.biCompression = BI_RGB;
-	bmpInfoHeader.biWidth = wid;
-	bmpInfoHeader.biHeight = -1 * hei;
+	bmpInfoHeader.biWidth = width;
+	bmpInfoHeader.biHeight = -1 * height;
 	bmpInfoHeader.biPlanes = 1;
 
-	mImageWidth    = (uint32_t)wid;
-	mImageHeight   = (uint32_t)hei;
-	mImageWidthSm  = (uint32_t)widSm;
-	mImageHeightSm = (uint32_t)heiSm;
+	mImageWidth    = (uint32_t)width;
+	mImageHeight   = (uint32_t)height;
+	mImageWidthSm  = (uint32_t)widthSm;
+	mImageHeightSm = (uint32_t)heightSm;
 
 	if(mFileHandle != INVALID_HANDLE_VALUE)
 	{
@@ -122,8 +122,8 @@ void LOPictureWriter::WriteBeginning()
 
 void LOPictureWriter::WriteRow(const boost::dynamic_bitset<uint64_t>& row, int rowIndex)
 {
-	UINT si_si = mGameSize * mGameSize;
-	std::cout << (rowIndex) * 100.0f / si_si << "%..." << std::endl;
+	UINT matrixHeight = mBoardHeight * mBoardHeight;
+	std::cout << (rowIndex) * 100.0f / matrixHeight << "%..." << std::endl;
 
 	switch (mSaveMode)
 	{
@@ -150,7 +150,7 @@ void LOPictureWriter::WriteRowBorderful(const boost::dynamic_bitset<uint64_t>& r
 		WriteCellLine(row);
 	}
 
-	if((rowIndex + 1) % mGameSize == 0)
+	if((rowIndex + 1) % mBoardHeight == 0)
 	{
 		WriteEdgeLine();
 		WriteWhiteLine();
@@ -164,7 +164,7 @@ void LOPictureWriter::WriteRowBorderfulWhite(const boost::dynamic_bitset<uint64_
 		WriteCellLine(row);
 	}
 
-	if((rowIndex + 1) % mGameSize == 0)
+	if((rowIndex + 1) % mBoardHeight == 0)
 	{
 		WriteWhiteLine();
 	}
@@ -221,7 +221,7 @@ DWORD LOPictureWriter::WriteEdgeLine()
 	uint32_t black = BLACK_ARGB;
 
 	uint32_t* buf_prev = mTempBuf.data();
-	for (int ix = 0; ix < mGameSize; ix++)
+	for (int ix = 0; ix < mBoardWidth; ix++)
 	{
 		*(buf_prev++) = white;
 
@@ -256,17 +256,17 @@ DWORD LOPictureWriter::WriteCellLine(const boost::dynamic_bitset<uint64_t>& row)
 	UINT red   = RED_ARGB;
 
 	uint32_t* buf_prev = mTempBuf.data();
-	for (int ix = 0; ix < mGameSize; ix++)
+	for (int ix = 0; ix < mBoardWidth; ix++)
 	{
 		*(buf_prev++) = white;
 
-		for (int jx = 0; jx < mGameSize; jx++)
+		for (int jx = 0; jx < mBoardWidth; jx++)
 		{
 			*(buf_prev++) = black;
 
 			for (int i = 0; i < CELL_WID; i++)
 			{
-				if(row[ix * mGameSize + jx])
+				if(row[ix * mBoardWidth + jx])
 				{
 					*(buf_prev++) = red;
 				}
@@ -298,11 +298,11 @@ DWORD LOPictureWriter::WriteBorderlessCellLine(const boost::dynamic_bitset<uint6
 	UINT red   = RED_ARGB;
 
 	uint32_t* buf_prev = mTempBuf.data();
-	for(int ix = 0; ix < mGameSize; ix++)
+	for(int ix = 0; ix < mBoardWidth; ix++)
 	{
-		for(int jx = 0; jx < mGameSize; jx++)
+		for(int jx = 0; jx < mBoardWidth; jx++)
 		{
-			if(row[ix * mGameSize + jx])
+			if(row[ix * mBoardWidth + jx])
 			{
 				*(buf_prev++) = red;
 			}
@@ -331,13 +331,13 @@ DWORD LOPictureWriter::WriteBorderlessCellLineBig(const boost::dynamic_bitset<ui
 	UINT red   = RED_ARGB;
 
 	uint32_t* buf_prev = mTempBuf.data();
-	for(int ix = 0; ix < mGameSize; ix++)
+	for(int ix = 0; ix < mBoardWidth; ix++)
 	{
-		for(int jx = 0; jx < mGameSize; jx++)
+		for(int jx = 0; jx < mBoardWidth; jx++)
 		{
 			for (int i = 0; i < CELL_WID; i++)
 			{
-				if (row[ix * mGameSize + jx])
+				if (row[ix * mBoardWidth + jx])
 				{
 					*(buf_prev++) = red;
 				}

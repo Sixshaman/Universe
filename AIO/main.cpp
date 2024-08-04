@@ -355,20 +355,20 @@ std::optional<LaunchOptions> ParseCommandLineArgs(int argc, char* argv[])
 	return result;
 }
 
-bool VerifySolutionPeriod(uint32_t gameSize, const std::string& clickRuleFilename, const boost::multiprecision::cpp_int& solutionPeriod, bool bVerbose)
+bool VerifySolutionPeriod(uint32_t boardWidth, uint32_t boardHeight, const std::string& clickRuleFilename, const boost::multiprecision::cpp_int& solutionPeriod, bool bVerbose)
 {
 	//Verify solution period
 	if(solutionPeriod == 1)
 	{
-		return gameSize == 1; //Only possible for 1x1 board
+		return (boardWidth == 1) && (boardHeight == 1); //Only possible for 1x1 board
 	}
 	else
 	{
 		LOMatrix mat;
 		assert(solutionPeriod % 2 == 0);
-		mat.LoadSquareClickRule(clickRuleFilename, gameSize); //TODO: only default click rule is supported!!!
+		mat.LoadSquareClickRule(clickRuleFilename, boardWidth, boardHeight); //TODO: only default click rule is supported!!!
 
-		boost::dynamic_bitset<uint64_t> vectorTest(gameSize * gameSize, 0);
+		boost::dynamic_bitset<uint64_t> vectorTest(boardWidth * boardHeight, 0);
 		vectorTest.set(0, true);
 
 		//Test that the (A^p)*((A^p)*b) == (A^p)*b, i.e. this is indeed the solution period
@@ -530,21 +530,22 @@ int main(int argc, char *argv[])
 		LOMatrix mat;
 		std::string resultMessage;
 
-		uint32_t boardSize = launchOptions.BoardWidth;
-		resultMessage += std::format("Lights out game {}x{}", boardSize, boardSize);
+		uint32_t boardWidth  = launchOptions.BoardWidth;
+		uint32_t boardHeight = launchOptions.BoardHeight;
+		resultMessage += std::format("Lights out game {}x{}", boardWidth, boardHeight);
 
 		switch (launchOptions.Topology)
 		{
 		case BoardTopology::Square:
 		{
-			mat.LoadSquareClickRule(launchOptions.ClickRuleFilename, boardSize);
+			mat.LoadSquareClickRule(launchOptions.ClickRuleFilename, boardWidth, boardHeight);
 			resultMessage += " on square board";
 			break;
 		}
 
 		case BoardTopology::Torus:
 		{
-			mat.LoadToroidClickRule(launchOptions.ClickRuleFilename, boardSize);
+			mat.LoadToroidClickRule(launchOptions.ClickRuleFilename, boardWidth, boardHeight);
 			resultMessage += " on toroid board";
 			break;
 		}
@@ -574,15 +575,16 @@ int main(int argc, char *argv[])
 	}
 	else if(launchOptions.LaunchMode == LaunchMode::CalcDefaultClickRuleSolutionPeriod || launchOptions.LaunchMode == LaunchMode::CalcClickRuleSolutionPeriodAndVerify)
 	{
-		uint32_t gameWidth = launchOptions.BoardWidth;
-
+		uint32_t boardWidth  = launchOptions.BoardWidth;
+		uint32_t boardHeight = boardWidth; //Only square boards are supported by this
+		
 		LOMatrix mat;
-		auto solutionPeriod = mat.FindSolutionPeriod(gameWidth);
-		std::cout << std::format("SOLUTION PERIOD for default {}x{} Lights Out: {}", gameWidth, gameWidth, solutionPeriod) << std::endl;
+		auto solutionPeriod = mat.FindSolutionPeriod(boardWidth);
+		std::cout << std::format("SOLUTION PERIOD for default {}x{} Lights Out: {}", boardWidth, boardHeight, solutionPeriod) << std::endl;
 
 		if(launchOptions.LaunchMode == LaunchMode::CalcClickRuleSolutionPeriodAndVerify)
 		{
-			if(!VerifySolutionPeriod(gameWidth, launchOptions.ClickRuleFilename, solutionPeriod, launchOptions.Verbose))
+			if(!VerifySolutionPeriod(boardWidth, boardHeight, launchOptions.ClickRuleFilename, solutionPeriod, launchOptions.Verbose))
 			{
 				std::cout << "SOLUTION PERIOD VERIFICATION ERROR!" << std::endl;
 			}
@@ -599,11 +601,11 @@ int main(int argc, char *argv[])
 		switch (launchOptions.Topology)
 		{
 		case BoardTopology::Square:
-			mat.LoadSquareClickRule(launchOptions.ClickRuleFilename, launchOptions.BoardWidth);
+			mat.LoadSquareClickRule(launchOptions.ClickRuleFilename, launchOptions.BoardWidth, launchOptions.BoardHeight);
 			break;
 
 		case BoardTopology::Torus:
-			mat.LoadToroidClickRule(launchOptions.ClickRuleFilename, launchOptions.BoardWidth);
+			mat.LoadToroidClickRule(launchOptions.ClickRuleFilename, launchOptions.BoardWidth, launchOptions.BoardHeight);
 			break;
 
 		case BoardTopology::Matrix:

@@ -68,7 +68,7 @@ uint32_t FindEditingStepsPower(uint32_t n)
 	}
 }
 
-LOMatrix::LOMatrix(): mSize(0), mQuietPatternBase(mSize*mSize)
+LOMatrix::LOMatrix()
 {
 }
 
@@ -81,9 +81,9 @@ LOMatrix LOMatrix::InvertMatrix()
 	#pragma warning(disable: 6293) //For loops til unsigned overflow are not ill-defined
 
 	LOMatrix result;
-	result.SetIdentity(mSize);
+	result.SetIdentity(mBoardWidth, mBoardHeight);
 
-	uint32_t matrixSize = mSize * mSize;
+	uint32_t matrixSize = mBoardWidth * mBoardHeight;
 	for(uint32_t i = 0; i < matrixSize; i++)
 	{
 		if(!mRows[i][i])
@@ -143,27 +143,29 @@ uint32_t LOMatrix::GetQuietPatternsCount()
 	return mQuietPatternBase;
 }
 
-void LOMatrix::SetIdentity(uint32_t gameSize)
+void LOMatrix::SetIdentity(uint32_t boardWidth, uint32_t boardHeight)
 {
-	mSize = gameSize;
+	mBoardWidth  = boardWidth;
+	mBoardHeight = boardHeight;
 
-	mRows.resize(mSize * mSize);
-	for(uint32_t i = 0; i < mSize * mSize; i++)
+	mRows.resize(mBoardWidth * mBoardHeight);
+	for(uint32_t i = 0; i < mRows.size(); i++)
 	{
-		mRows[i].resize(mSize * mSize);
+		mRows[i].resize(mRows.size());
 		mRows[i].set(i, 1);
 	}
 }
 
 LOMatrix LOMatrix::Mul(const LOMatrix& right)
 {
-	if(right.mSize != mSize)
+	if(right.mBoardWidth != mBoardWidth || right.mBoardHeight != mBoardHeight)
 	{
 		return *this;
 	}
 
 	LOMatrix result;
-	result.mSize = mSize;
+	result.mBoardWidth  = mBoardWidth;
+	result.mBoardHeight = mBoardHeight;
 
 	result.mRows.resize(mRows.size());
 	for(size_t i = 0; i < mRows.size(); i++)
@@ -207,10 +209,10 @@ LOMatrix LOMatrix::Mul(const LOMatrix& right)
 
 boost::dynamic_bitset<uint64_t> LOMatrix::MulBoard(boost::dynamic_bitset<uint64_t>& board)
 {
-	assert(board.size() == mSize * mSize);
+	assert(board.size() == mBoardWidth * mBoardHeight);
 	boost::dynamic_bitset<uint64_t> result(board.size());
 
-	for(uint32_t i = 0; i < mSize * mSize; i++)
+	for(uint32_t i = 0; i < mBoardWidth * mBoardHeight; i++)
 	{
 		result.set(i, (mRows[i] & board).count() % 2);
 	}
@@ -229,7 +231,7 @@ LOMatrix LOMatrix::CalcMatrixPower(const boost::multiprecision::cpp_int& matrixP
 	else
 	{
 		boost::multiprecision::cpp_int totalMatrixPower = 0;
-		mulMat.SetIdentity(mSize);
+		mulMat.SetIdentity(mBoardWidth, mBoardHeight);
 
 		if(matrixPower & 1)
 		{
@@ -270,171 +272,150 @@ LOMatrix LOMatrix::CalcMatrixPower(const boost::multiprecision::cpp_int& matrixP
 	return mulMat;
 }
 
-void LOMatrix::LoadSquareClickRule(const std::string& filename, uint32_t gameSize)
+void LOMatrix::LoadSquareClickRule(const std::string& filename, uint32_t boardWidth, uint32_t boardHeight)
 {
-	mSize = gameSize;
-	mQuietPatternBase = mSize * mSize;
+	mBoardWidth = boardWidth;
+	mBoardHeight = boardHeight;
+	mQuietPatternBase = 0;
 
-	int si_si = mSize * mSize;
+	int matrixSize = mBoardWidth * mBoardHeight;
 	mRows.clear();
 
-	for (int i = 0; i < si_si; i++)
+	for (int i = 0; i < matrixSize; i++)
 	{
-		mRows.push_back(boost::dynamic_bitset<uint64_t>(si_si));
+		mRows.push_back(boost::dynamic_bitset<uint64_t>(matrixSize));
 	}
 
-	LOPictureReader reader(filename, mSize, PictureLoadMode::BORDERLESS_SMALL);
+	LOPictureReader reader(filename, mBoardWidth, mBoardHeight, PictureLoadMode::BORDERLESS_SMALL);
 	reader.ReadMetadata();
 
 	if(reader.IsValidImage())
 	{
 		reader.ReadBeginning();
 
-		std::vector<boost::dynamic_bitset<uint64_t>> matrixTrouted;
-		matrixTrouted.resize(mRows.size());
-		for (size_t i = 0; i < mRows.size(); i++)
+		boost::dynamic_bitset<uint64_t> matrixRowSplat;
+		matrixRowSplat.resize(mBoardWidth * mBoardWidth);
+		for (size_t i = 0; i < mBoardHeight * mBoardHeight; i++)
 		{
-			matrixTrouted[i].resize(mRows.size());
-		}
+			reader.ReadNextRow(matrixRowSplat, i);
 
-		for (int i = 0; i < si_si; i++)
-		{
-			reader.ReadNextRow(matrixTrouted[i], i);
-		}
+			size_t iBig = i / mBoardHeight;
+			size_t jBig = i % mBoardHeight;
 
-		for (size_t i = 0; i < matrixTrouted.size(); i++)
-		{
-			size_t iBig = i / mSize;
-			size_t jBig = i % mSize;
-
-			for (size_t j = 0; j < matrixTrouted[i].size(); j++)
+			for(size_t j = 0; j < matrixRowSplat.size(); j++)
 			{
-				size_t iSm = j / mSize;
-				size_t jSm = j % mSize;
+				size_t iSm = j / mBoardWidth;
+				size_t jSm = j % mBoardWidth;
 
-				size_t row = iBig * mSize + iSm;
-				size_t column = jBig * mSize + jSm;
+				size_t row    = iBig * mBoardWidth + iSm;
+				size_t column = jBig * mBoardWidth + jSm;
 
-				mRows[row].set(column, matrixTrouted[i][j]);
+				mRows[row].set(column, matrixRowSplat[j]);
 			}
 		}
 	}
 	else
 	{
 		//std::cout << "USING DEFAULT MATRIX" << std::endl;
-		LoadDefault(gameSize);
+		LoadDefault(mBoardWidth, mBoardHeight);
 	}
 }
 
-void LOMatrix::LoadToroidClickRule(const std::string& filename, uint32_t gameSize)
+void LOMatrix::LoadToroidClickRule(const std::string& filename, uint32_t boardWidth, uint32_t boardHeight)
 {
-	mSize = gameSize;
-	mQuietPatternBase = mSize * mSize;
+	mBoardWidth = boardWidth;
+	mBoardHeight = boardHeight;
+	mQuietPatternBase = 0;
 
-	int si_si = mSize * mSize;
+	int matrixSize = mBoardWidth * mBoardHeight;
 	mRows.clear();
 
-	for (int i = 0; i < si_si; i++)
+	for (int i = 0; i < matrixSize; i++)
 	{
-		mRows.push_back(boost::dynamic_bitset<uint64_t>(si_si));
+		mRows.push_back(boost::dynamic_bitset<uint64_t>(matrixSize));
 	}
 
-	LOPictureReader reader(filename, mSize, PictureLoadMode::BORDERLESS_SMALL_TOR);
+	LOPictureReader reader(filename, mBoardWidth, mBoardHeight, PictureLoadMode::BORDERLESS_SMALL_TOR);
 	reader.ReadMetadata();
 
 	if(reader.IsValidImage())
 	{
 		reader.ReadBeginning();
 
-		std::vector<boost::dynamic_bitset<uint64_t>> matrixTrouted;
-		matrixTrouted.resize(mRows.size());
-		for (size_t i = 0; i < mRows.size(); i++)
+		boost::dynamic_bitset<uint64_t> matrixRowSplat;
+		matrixRowSplat.resize(mBoardWidth * mBoardWidth);
+		for(size_t i = 0; i < mBoardHeight * mBoardHeight; i++)
 		{
-			matrixTrouted[i].resize(mRows.size());
-		}
+			reader.ReadNextRow(matrixRowSplat, i);
 
-		for (int i = 0; i < si_si; i++)
-		{
-			reader.ReadNextRow(matrixTrouted[i], i);
-		}
+			size_t iBig = i / mBoardHeight;
+			size_t jBig = i % mBoardHeight;
 
-		for (size_t i = 0; i < matrixTrouted.size(); i++)
-		{
-			size_t iBig = i / mSize;
-			size_t jBig = i % mSize;
-
-			for (size_t j = 0; j < matrixTrouted[i].size(); j++)
+			for (size_t j = 0; j < matrixRowSplat.size(); j++)
 			{
-				size_t iSm = j / mSize;
-				size_t jSm = j % mSize;
+				size_t iSm = j / mBoardWidth;
+				size_t jSm = j % mBoardWidth;
 
-				size_t row    = iBig * mSize + iSm;
-				size_t column = jBig * mSize + jSm;
+				size_t row    = iBig * mBoardWidth + iSm;
+				size_t column = jBig * mBoardWidth + jSm;
 
-				mRows[row].set(column, matrixTrouted[i][j]);
+				mRows[row].flip(column, matrixRowSplat[j]);
 			}
 		}
 	}
 	else
 	{
-		std::cout << "USING DEFAULT MATRIX" << std::endl;
-		LoadDefaultTor(gameSize);
+		//std::cout << "USING DEFAULT MATRIX" << std::endl;
+		LoadDefaultToroid(boardWidth, boardHeight);
 	}
 }
 
 void LOMatrix::LoadMatrix(const std::string& filename)
 {
-	LOPictureReader reader(filename, 0, PictureLoadMode::BORDERLESS);
+	LOPictureReader reader(filename, 0, 0, PictureLoadMode::BORDERLESS);
 	reader.ReadMetadata();
 
-	mSize             = reader.GetGameSize();
-	mQuietPatternBase = mSize * mSize;
+	mBoardWidth       = reader.GetBoardSize();
+	mBoardHeight      = reader.GetBoardSize();
+	mQuietPatternBase = 0;
 
-	int si_si = mSize * mSize;
+	int matrixSize = mBoardWidth * mBoardHeight;
 	mRows.clear();
 
-	for (int i = 0; i < si_si; i++)
+	for (int i = 0; i < matrixSize; i++)
 	{
-		mRows.push_back(boost::dynamic_bitset<uint64_t>(si_si));
+		mRows.push_back(boost::dynamic_bitset<uint64_t>(matrixSize));
 	}
 
 	if(reader.IsValidImage())
 	{
 		reader.ReadBeginning();
 
-		std::vector<boost::dynamic_bitset<uint64_t>> matrixTrouted;
-		matrixTrouted.resize(mRows.size());
-		for (size_t i = 0; i < mRows.size(); i++)
+		boost::dynamic_bitset<uint64_t> matrixRowSplat;
+		matrixRowSplat.resize(mBoardWidth * mBoardWidth);
+		for(size_t i = 0; i < mBoardHeight * mBoardHeight; i++)
 		{
-			matrixTrouted[i].resize(mRows.size());
-		}
+			reader.ReadNextRow(matrixRowSplat, i);
 
-		for (int i = 0; i < si_si; i++)
-		{
-			reader.ReadNextRow(matrixTrouted[matrixTrouted.size() - i - 1], i);
-		}
+			size_t iBig = i / mBoardHeight;
+			size_t jBig = i % mBoardHeight;
 
-		for (size_t i = 0; i < matrixTrouted.size(); i++)
-		{
-			size_t iBig = i / mSize;
-			size_t jBig = i % mSize;
-
-			for (size_t j = 0; j < matrixTrouted[i].size(); j++)
+			for (size_t j = 0; j < matrixRowSplat.size(); j++)
 			{
-				size_t iSm = j / mSize;
-				size_t jSm = j % mSize;
+				size_t iSm = j / mBoardWidth;
+				size_t jSm = j % mBoardWidth;
 
-				size_t row    = iBig * mSize + iSm;
-				size_t column = jBig * mSize + jSm;
+				size_t row    = iBig * mBoardHeight + iSm;
+				size_t column = jBig * mBoardWidth  + jSm;
 
-				mRows[row].set(column, matrixTrouted[i][j]);
+				mRows[row].set(column, matrixRowSplat[j]);
 			}
 		}
 	}
 	else
 	{
-		std::cout << "USING DEFAULT MATRIX 7X7" << std::endl;
-		LoadDefault(7);
+		//std::cout << "USING DEFAULT MATRIX 7X7" << std::endl;
+		LoadDefault(7, 7);
 	}
 }
 
@@ -461,104 +442,110 @@ boost::multiprecision::cpp_int LOMatrix::FindSolutionPeriod(uint32_t gameSize)
 	return solutionPeriod;
 }
 
-void LOMatrix::LoadDefault(uint32_t size)
+void LOMatrix::LoadDefault(uint32_t boardWidth, uint32_t boardHeight)
 {
-	mSize = size;
-	mQuietPatternBase = mSize * mSize;
+	mBoardWidth = boardWidth;
+	mBoardHeight = boardHeight;
+	mQuietPatternBase = mBoardWidth * mBoardHeight;
 
-	int si_si = size * size;
+	uint32_t matrixSize = mBoardWidth * mBoardHeight;
 	mRows.clear();
 
-	for (int i = 0; i < si_si; i++)
+	for(uint32_t i = 0; i < matrixSize; i++)
 	{
-		mRows.push_back(boost::dynamic_bitset<uint64_t>(si_si));
+		mRows.push_back(boost::dynamic_bitset<uint64_t>(matrixSize));
 	}
 
-	for (int i = 0; i < si_si; i++)
+	for(uint32_t i = 0; i < matrixSize; i++)
 	{
-		for (int j = 0; j < si_si; j++)
+		mRows[i][i] = 1;
+
+		uint32_t widthDiv = i / boardWidth;
+		uint32_t widthRem = i - (widthDiv * boardWidth);
+
+		if(widthRem != 0)
 		{
-			if ((i == j) || ((i == j - 1) && (i + 1) % size) || ((i == j + 1) && (i%size)) || (i == j - size) || (i == j + size))
-				mRows[i][j] = 1;
-			else mRows[i][j] = 0;
+			mRows[i][i - 1] = 1;
+		}
+
+		if(widthRem + 1 != boardWidth)
+		{
+			mRows[i][i + 1] = 1;
+		}
+
+		if(widthDiv != 0)
+		{
+			mRows[i][i - boardWidth] = 1;
+		}
+
+		if(widthDiv + 1 != boardHeight)
+		{
+			mRows[i][i + boardWidth] = 1;
 		}
 	}
 }
 
-void LOMatrix::LoadDefaultTor(uint32_t size)
+void LOMatrix::LoadDefaultToroid(uint32_t boardWidth, uint32_t boardHeight)
 {
-	mSize = size;
-	mQuietPatternBase = mSize * mSize;
+	mBoardWidth = boardWidth;
+	mBoardHeight = boardHeight;
+	mQuietPatternBase = mBoardWidth * mBoardHeight;
 
-	int si_si = size * size;
+	uint32_t matrixSize = mBoardWidth * mBoardHeight;
 	mRows.clear();
 
-	for (int i = 0; i < si_si; i++)
+	for(uint32_t i = 0; i < matrixSize; i++)
 	{
-		mRows.push_back(boost::dynamic_bitset<uint64_t>(si_si));
-		mRows.back().reset();
+		mRows.push_back(boost::dynamic_bitset<uint64_t>(matrixSize));
 	}
 
-	for(int i = 0; i < si_si; i++)
+	for(uint32_t i = 0; i < matrixSize; i++)
 	{
-		int iBig = i / mSize;
-		int iSm  = i % mSize;
+		uint32_t rowIndex = i / boardWidth;
+		uint32_t colIndex = i % boardWidth;
 
-		int rightSm = mod(iSm + 1, mSize);
-		int leftSm  = mod(iSm - 1, mSize);
-		int topBig  = mod(iBig - 1, mSize);
-		int botBig  = mod(iBig + 1, mSize);
+		mRows[i].flip(i);
 
-		int top   = topBig * mSize + iSm;
-		int bot   = botBig * mSize + iSm;
-		int left  = iBig * mSize + leftSm;
-		int right = iBig * mSize + rightSm;
+		mRows[i].flip((i + matrixSize - boardWidth) % matrixSize);
+		mRows[i].flip((i + matrixSize + boardWidth) % matrixSize);
 
-		mRows[i].set(i);
-		mRows[i].set(top);
-		mRows[i].set(bot);
-		mRows[i].set(left);
-		mRows[i].set(right);
+		mRows[i].flip(rowIndex * boardWidth + (colIndex + boardWidth - 1) % boardWidth);
+		mRows[i].flip(rowIndex * boardWidth + (colIndex + boardWidth + 1) % boardWidth);
 	}
 }
 
-void LOMatrix::SaveMatrix(const std::string & filename, PictureSaveMode saveMode)
+void LOMatrix::SaveMatrix(const std::string& filename, PictureSaveMode saveMode)
 {
-	std::vector<boost::dynamic_bitset<uint64_t>> matrixTrouted;
-	matrixTrouted.resize(mRows.size());
-	for(size_t i = 0; i < mRows.size(); i++)
+	std::vector<boost::dynamic_bitset<uint64_t>> matrixUnsplat;
+	matrixUnsplat.resize(mBoardHeight * mBoardHeight);
+	for(size_t i = 0; i < matrixUnsplat.size(); i++)
 	{
-		matrixTrouted[i].resize(mRows.size());
+		matrixUnsplat[i].resize(mBoardWidth * mBoardWidth);
 	}
 
 	for(size_t i = 0; i < mRows.size(); i++)
 	{
-		size_t iBig = i / mSize;
-		size_t jBig = i % mSize;
+		size_t iBig = i / mBoardWidth;
+		size_t jBig = i % mBoardWidth;
 
 		for(size_t j = 0; j < mRows[i].size(); j++)
 		{
-			size_t iSm = j / mSize;
-			size_t jSm = j % mSize;
+			size_t iSm = j / mBoardWidth;
+			size_t jSm = j % mBoardWidth;
 
-			size_t row    = iBig * mSize + iSm;
-			size_t column = jBig * mSize + jSm;
+			size_t row    = iBig * mBoardHeight + iSm;
+			size_t column = jBig * mBoardWidth  + jSm;
 
-			matrixTrouted[row].set(column, mRows[i][j]);
+			matrixUnsplat[row].set(column, mRows[i][j]);
 		}
 	}
 
-	LOPictureWriter writer(filename, mSize, saveMode);
+	LOPictureWriter writer(filename, mBoardWidth, mBoardHeight, saveMode);
 	writer.WriteMetadata();
 	writer.WriteBeginning();
 
-	for(size_t i = 0; i < matrixTrouted.size(); i++)
+	for(size_t i = 0; i < matrixUnsplat.size(); i++)
 	{
-		writer.WriteRow(matrixTrouted[i], i);
+		writer.WriteRow(matrixUnsplat[i], i);
 	}
-}
-
-int LOMatrix::mod(int a, int b)
-{
-	return ((((a) % b) + b) % b);
 }

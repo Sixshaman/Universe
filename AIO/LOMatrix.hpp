@@ -21,7 +21,7 @@ public:
 
 	uint32_t GetQuietPatternsCount();
 
-	void SetIdentity(uint32_t gameSize);
+	void SetIdentity(uint32_t boardWidth, uint32_t boardHeight);
 
 	LOMatrix Mul(const LOMatrix& right);
 	boost::dynamic_bitset<uint64_t> MulBoard(boost::dynamic_bitset<uint64_t>& board);
@@ -30,25 +30,24 @@ public:
 
 	LOMatrix CalcMatrixPower(const boost::multiprecision::cpp_int& matrixPower, bool bVerbose);
 
-	void LoadSquareClickRule(const std::string& filename, uint32_t gameSize);
-	void LoadToroidClickRule(const std::string& filename, uint32_t gameSize);
+	void LoadSquareClickRule(const std::string& filename, uint32_t boardWidth, uint32_t boardHeight);
+	void LoadToroidClickRule(const std::string& filename, uint32_t boardWidth, uint32_t boardHeight);
 	void LoadMatrix(const std::string& filename);
 
 	void SaveMatrix(const std::string& filename);
 	void SaveMatrixBorderless(const std::string& filename);
 
-	boost::multiprecision::cpp_int FindSolutionPeriod(uint32_t gameSize);
+	boost::multiprecision::cpp_int FindSolutionPeriod(uint32_t boardSize);
 
 private:
-	void LoadDefault(uint32_t size);
-	void LoadDefaultTor(uint32_t size);
+	void LoadDefault(uint32_t boardWidth, uint32_t boardHeight);
+	void LoadDefaultToroid(uint32_t boardWidth, uint32_t boardHeight);
 
 	void SaveMatrix(const std::string& filename, PictureSaveMode saveMode);
 
-	int mod(int a, int b);
-
 private:
-	uint32_t mSize             = 0;
+	uint32_t mBoardWidth       = 0;
+	uint32_t mBoardHeight      = 0;
 	uint32_t mQuietPatternBase = 0;
 
 	std::vector<boost::dynamic_bitset<uint64_t>> mRows;

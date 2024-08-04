@@ -8,7 +8,7 @@
 class LOPictureReader
 {
 public:
-	LOPictureReader(const std::string& filename, uint32_t gamesize, PictureLoadMode loadMode);
+	LOPictureReader(const std::string& filename, uint32_t boardWidth, uint32_t boardHeight, PictureLoadMode loadMode);
 	~LOPictureReader();
 
 	void ReadMetadata();
@@ -17,7 +17,7 @@ public:
 
 	bool IsValidImage();
 
-	uint32_t GetGameSize() const;
+	uint32_t GetBoardSize() const;
 
 private:
 	void ReadNextRowRegular(boost::dynamic_bitset<uint64_t>& row, uint32_t rowIndex);
@@ -26,11 +26,10 @@ private:
 
 	void ReadSmallPicture();
 
-	int mod(int a, int b);
-
 private:
 	HANDLE          mFileHandle;
-	uint32_t        mGameSize;
+	uint32_t        mBoardWidth;
+	uint32_t        mBoardHeight;
 	PictureLoadMode mLoadMode;
 
 	uint32_t mImageWidth;

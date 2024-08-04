@@ -8,7 +8,7 @@
 class LOPictureWriter
 {
 public:
-	LOPictureWriter(const std::string& filename, uint32_t gamesize, PictureSaveMode mode);
+	LOPictureWriter(const std::string& filename, uint32_t boardWidth, uint32_t boardHeight, PictureSaveMode mode);
 	~LOPictureWriter();
 
 	void WriteMetadata();
@@ -29,7 +29,8 @@ private:
 
 private:
 	HANDLE          mFileHandle;
-	uint32_t        mGameSize;
+	uint32_t        mBoardWidth;
+	uint32_t        mBoardHeight;
 	PictureSaveMode mSaveMode;
 
 	uint32_t mImageWidth;
