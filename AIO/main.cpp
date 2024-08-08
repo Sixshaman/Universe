@@ -68,7 +68,7 @@ std::optional<LaunchOptions> ParseCommandLineArgs(int argc, char* argv[])
 
 	bool overrideTopology = false;
 
-	int currArg = 0;
+	int currArg = 1;
 	while(currArg < argc)
 	{
 		if(strcmp(argv[currArg], "--power") == 0)
@@ -266,6 +266,12 @@ std::optional<LaunchOptions> ParseCommandLineArgs(int argc, char* argv[])
 		else if(strcmp(argv[currArg], "--verbose") == 0)
 		{
 			result.Verbose = true;
+		}
+
+		else
+		{
+			std::cout << "Unknown option: " << argv[currArg] << std::endl;
+			return std::nullopt;
 		}
 
 		currArg++;
