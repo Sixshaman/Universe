@@ -235,7 +235,7 @@ LOMatrix LOMatrix::CalcMatrixPower(const boost::multiprecision::cpp_int& matrixP
 
 		if(matrixPower & 1)
 		{
-			mulMat.Mul(*this);
+			mulMat = mulMat.Mul(*this);
 
 			if(bVerbose)
 			{
@@ -250,12 +250,10 @@ LOMatrix LOMatrix::CalcMatrixPower(const boost::multiprecision::cpp_int& matrixP
 		boost::multiprecision::cpp_int currMatrixPowerBit = 2; //Power 1 is already checked
 		while(currMatrixPowerBit <= matrixPower)
 		{
-			LOMatrix currMatrix = prevMatrix;
-			currMatrix.Mul(prevMatrix);
-
+			LOMatrix currMatrix = prevMatrix.Mul(prevMatrix);
 			if(matrixPower & currMatrixPowerBit)
 			{
-				mulMat.Mul(currMatrix);
+				mulMat = mulMat.Mul(currMatrix);
 
 				currMatrixPower = currMatrixPower | currMatrixPowerBit;
 				if(bVerbose)
