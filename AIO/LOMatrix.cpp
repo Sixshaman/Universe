@@ -427,7 +427,37 @@ void LOMatrix::SaveMatrixBorderless(const std::string& filename)
 	SaveMatrix(filename, PictureSaveMode::BORDERLESS);
 }
 
-boost::multiprecision::cpp_int LOMatrix::FindSolutionPeriod(uint32_t gameSize)
+boost::multiprecision::cpp_int LOMatrix::FindSolutionPeriod()
+{
+	boost::multiprecision::cpp_int result = 0;
+
+	boost::dynamic_bitset<uint64_t> initialBoard(mRows.size());
+	initialBoard.set(0, 1);
+
+	boost::multiprecision::cpp_int limit = 4;
+	while(true)
+	{
+		boost::dynamic_bitset<uint64_t> testBoard = initialBoard;
+		while(result < limit)
+		{
+			testBoard = MulBoard(testBoard);
+			result++;
+
+			if(testBoard == initialBoard)
+			{
+				return result;
+			}
+		}
+
+		//Maybe it's an unsolvable board size, so we will never return to the "initial" initial board
+		result = 0;
+		limit = (limit << 1);
+
+		initialBoard = testBoard;
+	}
+}
+
+boost::multiprecision::cpp_int LOMatrix::FindSolutionPeriodHeuristic(uint32_t gameSize)
 {
 	//(Hypothesis) A solution period of ANY default Lights Out nxn has form:
 	//2^p * (2^q - 1), where q is the (n+1)th value of https://oeis.org/A309786,

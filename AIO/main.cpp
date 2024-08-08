@@ -18,8 +18,9 @@ enum class LaunchMode
 	BuildDirectMatrix,
 	BuildInvertedMatrix,
 	CheckSolvability,
-	CalcDefaultClickRuleSolutionPeriod,
-	CalcClickRuleSolutionPeriodAndVerify
+	CalcSolutionPeriod,
+	CalcDefaultSolutionPeriodHeuristic,
+	VerifySolutionPeriodHeuristic,
 };
 
 enum class BoardTopology
@@ -54,11 +55,12 @@ std::optional<LaunchOptions> ParseCommandLineArgs(int argc, char* argv[])
 {
 	LaunchOptions result;
 
-	bool buildInverseMatrix        = false;
-	bool buildDirectMatrix         = false;
-	bool checkSolvability          = false;
-	bool calcDefaultSolutionPeriod = false;
-	bool calcVerifySolutionPeriod  = false;
+	bool buildInverseMatrix            = false;
+	bool buildDirectMatrix             = false;
+	bool checkSolvability              = false;
+	bool calcSolutionPeriod            = false;
+	bool calcSolutionPeriodHeuristic   = false;
+	bool verifySolutionPeriodHeuristic = false;
 
 	bool saveWithoutBorders   = false;
 	bool saveWithBorders      = false;
@@ -231,14 +233,19 @@ std::optional<LaunchOptions> ParseCommandLineArgs(int argc, char* argv[])
 			checkSolvability = true;
 		}
 
-		else if(strcmp(argv[currArg], "--calc_default_solution_period") == 0)
+		else if(strcmp(argv[currArg], "--calc_solution_period") == 0)
 		{
-			calcDefaultSolutionPeriod = true;
+			calcSolutionPeriod = true;
 		}
 
-		else if(strcmp(argv[currArg], "--calc_solution_period_verify") == 0)
+		else if(strcmp(argv[currArg], "--calc_solution_period_heuristic") == 0)
 		{
-			calcVerifySolutionPeriod = true;
+			calcSolutionPeriodHeuristic = true;
+		}
+
+		else if(strcmp(argv[currArg], "--verify_solution_period_heuristic") == 0)
+		{
+			verifySolutionPeriodHeuristic = true;
 		}
 
 		else if(strcmp(argv[currArg], "--borders") == 0 || strcmp(argv[currArg], "--default_borders") == 0 || strcmp(argv[currArg], "--with_borders") == 0)
@@ -246,17 +253,17 @@ std::optional<LaunchOptions> ParseCommandLineArgs(int argc, char* argv[])
 			saveWithBorders = true;
 		}
 
-		if(strcmp(argv[currArg], "--no_borders") == 0)
+		else if(strcmp(argv[currArg], "--no_borders") == 0)
 		{
 			saveWithoutBorders = true;
 		}
 
-		if(strcmp(argv[currArg], "--small_borders") == 0)
+		else if(strcmp(argv[currArg], "--small_borders") == 0)
 		{
 			saveWithSmallBorders = true;
 		}
 
-		if(strcmp(argv[currArg], "--verbose") == 0)
+		else if(strcmp(argv[currArg], "--verbose") == 0)
 		{
 			result.Verbose = true;
 		}
@@ -270,21 +277,15 @@ std::optional<LaunchOptions> ParseCommandLineArgs(int argc, char* argv[])
 		return std::nullopt;
 	}
 
-	if(checkSolvability && (calcDefaultSolutionPeriod || calcVerifySolutionPeriod || buildInverseMatrix || buildDirectMatrix))
+	if(checkSolvability && (calcSolutionPeriod || calcSolutionPeriodHeuristic || verifySolutionPeriodHeuristic || buildInverseMatrix || buildDirectMatrix))
 	{
 		std::cout << "Error: checking solvability is mutually exclusive with other options." << std::endl;
 		return std::nullopt;
 	}
 
-	if(calcDefaultSolutionPeriod && (calcVerifySolutionPeriod || checkSolvability || buildInverseMatrix || buildDirectMatrix))
+	if(calcSolutionPeriod && (calcSolutionPeriodHeuristic || verifySolutionPeriodHeuristic || checkSolvability || buildInverseMatrix || buildDirectMatrix))
 	{
 		std::cout << "Error: calculating solution period is mutually exclusive with other options." << std::endl;
-		return std::nullopt;
-	}
-
-	if(calcVerifySolutionPeriod && (calcDefaultSolutionPeriod || checkSolvability || buildInverseMatrix || buildDirectMatrix))
-	{
-		std::cout << "Error: calculating solution period with verification is mutually exclusive with other options." << std::endl;
 		return std::nullopt;
 	}
 
@@ -310,13 +311,17 @@ std::optional<LaunchOptions> ParseCommandLineArgs(int argc, char* argv[])
 	{
 		result.LaunchMode = LaunchMode::CheckSolvability;
 	}
-	else if(calcDefaultSolutionPeriod)
+	else if(calcSolutionPeriod)
 	{
-		result.LaunchMode = LaunchMode::CalcDefaultClickRuleSolutionPeriod;
+		result.LaunchMode = LaunchMode::CalcSolutionPeriod;
 	}
-	else if(calcVerifySolutionPeriod)
+	else if(calcSolutionPeriodHeuristic)
 	{
-		result.LaunchMode = LaunchMode::CalcClickRuleSolutionPeriodAndVerify;
+		result.LaunchMode = LaunchMode::CalcDefaultSolutionPeriodHeuristic;
+	}
+	else if(verifySolutionPeriodHeuristic)
+	{
+		result.LaunchMode = LaunchMode::VerifySolutionPeriodHeuristic;
 	}
 	else if(buildInverseMatrix)
 	{
@@ -437,12 +442,16 @@ void PrintOptions(const LaunchOptions& launchOptions)
 		std::cout << "check solvability" << std::endl;
 		break;
 
-	case LaunchMode::CalcDefaultClickRuleSolutionPeriod:
-		std::cout << "calculate solution period for default Lights Out" << std::endl;
+	case LaunchMode::CalcSolutionPeriod:
+		std::cout << "calculate solution period" << std::endl;
 		break;
 
-	case LaunchMode::CalcClickRuleSolutionPeriodAndVerify:
-		std::cout << "calculate and verify solution period for default Lights Out" << std::endl;
+	case LaunchMode::CalcDefaultSolutionPeriodHeuristic:
+		std::cout << "calculate solution period for default Lights Out using heuristic" << std::endl;
+		break;
+
+	case LaunchMode::VerifySolutionPeriodHeuristic:
+		std::cout << "verify solution period heuristic for default Lights Out" << std::endl;
 		break;
 
 	default:
@@ -573,16 +582,40 @@ int main(int argc, char *argv[])
 
 		std::cout << resultMessage << std::endl;
 	}
-	else if(launchOptions.LaunchMode == LaunchMode::CalcDefaultClickRuleSolutionPeriod || launchOptions.LaunchMode == LaunchMode::CalcClickRuleSolutionPeriodAndVerify)
+	else if(launchOptions.LaunchMode == LaunchMode::CalcSolutionPeriod)
+	{
+		LOMatrix mat;
+
+		switch (launchOptions.Topology)
+		{
+		case BoardTopology::Square:
+			mat.LoadSquareClickRule(launchOptions.ClickRuleFilename, launchOptions.BoardWidth, launchOptions.BoardHeight);
+			break;
+
+		case BoardTopology::Torus:
+			mat.LoadToroidClickRule(launchOptions.ClickRuleFilename, launchOptions.BoardWidth, launchOptions.BoardHeight);
+			break;
+
+		case BoardTopology::Matrix:
+			mat.LoadMatrix(launchOptions.MatrixFileName);
+			break;
+
+		default:
+			break;
+		}
+
+		std::cout << std::format("Solution period for {}x{} Lights Out puzzle is {}.", launchOptions.BoardWidth, launchOptions.BoardHeight, mat.FindSolutionPeriod()) << std::endl;
+	}
+	else if(launchOptions.LaunchMode == LaunchMode::CalcDefaultSolutionPeriodHeuristic || launchOptions.LaunchMode == LaunchMode::VerifySolutionPeriodHeuristic)
 	{
 		uint32_t boardWidth  = launchOptions.BoardWidth;
 		uint32_t boardHeight = boardWidth; //Only square boards are supported by this
 		
 		LOMatrix mat;
-		auto solutionPeriod = mat.FindSolutionPeriod(boardWidth);
+		auto solutionPeriod = mat.FindSolutionPeriodHeuristic(boardWidth);
 		std::cout << std::format("SOLUTION PERIOD for default {}x{} Lights Out: {}", boardWidth, boardHeight, solutionPeriod) << std::endl;
 
-		if(launchOptions.LaunchMode == LaunchMode::CalcClickRuleSolutionPeriodAndVerify)
+		if(launchOptions.LaunchMode == LaunchMode::VerifySolutionPeriodHeuristic)
 		{
 			if(!VerifySolutionPeriod(boardWidth, boardHeight, launchOptions.ClickRuleFilename, solutionPeriod, launchOptions.Verbose))
 			{

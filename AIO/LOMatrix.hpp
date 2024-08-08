@@ -37,7 +37,9 @@ public:
 	void SaveMatrix(const std::string& filename);
 	void SaveMatrixBorderless(const std::string& filename);
 
-	boost::multiprecision::cpp_int FindSolutionPeriod(uint32_t boardSize);
+	boost::multiprecision::cpp_int FindSolutionPeriod();
+
+	boost::multiprecision::cpp_int FindSolutionPeriodHeuristic(uint32_t boardSize);
 
 private:
 	void LoadDefault(uint32_t boardWidth, uint32_t boardHeight);
